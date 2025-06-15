@@ -1,0 +1,231 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Riwayat Transaksi</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        display: flex;
+        background-color: #f7f3ea;
+      }
+
+      .sidebar {
+        width: 250px;
+        background-color: #254e7a;
+        color: #fff;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 20px;
+        box-sizing: border-box;
+      }
+
+      .sidebar .top {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .logo {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 20px;
+      }
+
+      .profile {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 30px;
+      }
+
+      .profile img {
+        width: 70px;
+        border-radius: 50%;
+        margin-bottom: 10px;
+      }
+
+      .profile p {
+        margin: 0;
+        font-size: 18px;
+        font-weight: bold;
+      }
+
+      .sidebar ul {
+        list-style: none;
+        padding: 0;
+        width: 100%;
+      }
+
+      .sidebar ul li {
+        padding: 10px;
+        border-radius: 8px;
+        transition: 0.3s;
+      }
+
+      .sidebar ul li a {
+        text-decoration: none;
+        color: white;
+        display: block;
+      }
+
+      .sidebar ul li:hover,
+      .sidebar ul li.active {
+        background-color: #5584b0;
+      }
+
+      .logout {
+        text-align: center;
+        padding: 10px;
+        background-color: #5584b0;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.3s;
+      }
+
+      .logout:hover {
+        background-color: #82c2e6;
+      }
+
+      .main-content {
+        flex: 1;
+        padding: 30px;
+        background-color: #cbe3ef;
+        box-sizing: border-box;
+      }
+
+      .main-content h1 {
+        color: #254e7a;
+      }
+
+      .filters {
+        margin: 20px 0;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .filters a button {
+        background-color: #82c2e6;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        cursor: pointer;
+        color: white;
+        font-weight: bold;
+        transition: background-color 0.3s, transform 0.2s;
+      }
+
+      .filters a button:hover {
+        background-color: #5584b0;
+        transform: scale(1.05);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background-color: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      thead {
+        background-color: #5584b0;
+        color: white;
+      }
+
+      th,
+      td {
+        padding: 15px;
+        text-align: left;
+      }
+
+      tbody tr {
+        transition: background-color 0.3s;
+      }
+
+      tbody tr:hover {
+        background-color: #f1f1f1;
+      }
+
+      tbody tr td:first-child {
+        border-left: 5px solid #82c2e6;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sidebar">
+      <div class="logo">
+        <div class="logo-icon">F</div>
+        <span>Finote</span>
+      </div>
+
+      <div class="profile">
+        <div class="avatar">
+          <img
+            src="https://www.gravatar.com/avatar/<?php echo md5(strtolower(trim($username))); ?>?d=identicon&s=80"
+            alt="Profile"
+          />
+        </div>
+        <span class="welcome">Welcome back</span>
+        <span class="name"><?php echo htmlspecialchars($username); ?></span>
+      </div>
+
+      <ul class="menu">
+        <li class="menu-item active">
+          <a href="dashboard.php">
+            <span class="menu-icon"><i class="fas fa-tachometer-alt"></i></span>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        <li class="menu-item">
+          <a href="riwayat.html">
+            <span class="menu-icon"><i class="fas fa-exchange-alt"></i></span>
+            <span>Riwayat</span>
+          </a>
+        </li>
+        <li class="menu-item">
+          <a href="profile.php">
+            <span class="menu-icon"><i class="fas fa-cog"></i></span>
+            <span>Profile</span>
+          </a>
+        </li>
+        <li class="menu-item">
+          <a href="logout.php">
+            <span class="menu-icon"><i class="fas fa-sign-out-alt"></i></span>
+            <span>Log Out</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div class="main-content">
+      <h1>Riwayat Transaksi</h1>
+
+      <div class="filters">
+        <a href="riwayat.php"><button>All</button></a>
+        <a href="riwayat.php?filter=harian"><button>Harian</button></a>
+        <a href="riwayat.php?filter=mingguan"><button>Mingguan</button></a>
+        <a href="riwayat.php?filter=bulanan"><button>Bulanan</button></a>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Amount</th>
+            <th>Category</th>
+            <th>Date</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+      </table>
+    </div>
+  </body>
+</html>
