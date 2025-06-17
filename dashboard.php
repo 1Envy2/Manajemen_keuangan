@@ -674,7 +674,7 @@ $conn->close();
                                     <?php endforeach; ?>
                                 </div>
                             <?php endif; ?>
-                            <a href="riwayat.html" class="btn btn-outline-primary btn-sm mt-3 d-block"><i class="fas fa-history me-2"></i> Lihat Semua Transaksi</a>
+                            <a href="riwayat.php" class="btn btn-outline-primary btn-sm mt-3 d-block"><i class="fas fa-history me-2"></i> Lihat Semua Transaksi</a>
                         </div>
                     </div>
                 </div>
@@ -701,7 +701,7 @@ $conn->close();
                                 Saldo: <span class="badge bg-primary rounded-pill" style="background-color: var(--color-medium-blue) !important;">Rp <?php echo number_format($balance_month, 2, ',', '.'); ?></span>
                             </li>
                         </ul>
-                        <a href="transaction_history.php" class="btn btn-outline-primary btn-sm mt-3 d-block" style="border-color: var(--color-medium-blue); color: var(--color-medium-blue);"><i class="fas fa-history me-2"></i> Lihat Semua Riwayat</a>
+                        <a href="riwayat.php" class="btn btn-outline-primary btn-sm mt-3 d-block" style="border-color: var(--color-medium-blue); color: var(--color-medium-blue);"><i class="fas fa-history me-2"></i> Lihat Semua Riwayat</a>
                     </div>
                 </div>
             </div>
