@@ -604,15 +604,20 @@ $conn->close(); // Tutup koneksi setelah semua query selesai
                 </a>
             </li>
             <li class="menu-item">
+                <a href="<?= BASE_URL ?>/user/categories.php"> <span class="menu-icon"><i class="fas fa-tags"></i></span>
+                    <span>Kategori</span>
+                </a>
+            </li>
+            <li class="menu-item">
                 <a href="<?= BASE_URL ?>/user/profile.php"> <span class="menu-icon"><i class="fas fa-cog"></i></span>
                     <span>Profile</span>
                 </a>
             </li>
             <li class="menu-item">
-    <a href="<?= BASE_URL ?>/logout.php"> <span class="menu-icon"><i class="fas fa-sign-out-alt"></i></span>
-        <span>Log Out</span>
-    </a>
-</li>
+                <a href="<?= BASE_URL ?>/logout.php"> <span class="menu-icon"><i class="fas fa-sign-out-alt"></i></span>
+                    <span>Log Out</span>
+                </a>
+            </li>
         </ul>
     </div>
     
