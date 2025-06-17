@@ -12,14 +12,14 @@ require_once 'config.php';
 
 // Ambil data user dari session
 $user_id = $_SESSION['id'];
-$username = $_SESSION['username'];
-$query = "SELECT photo FROM users WHERE id = ?";
+$query = "SELECT username, photo FROM users WHERE id = ?";
 $stmt = $conn->prepare($query);
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
 $user = $result->fetch_assoc();
 
+$username = $user['username'] ?? 'User';
 $photo = (!empty($user['photo']) && file_exists('uploads/' . $user['photo'])) 
          ? 'uploads/' . $user['photo'] 
          : 'profile.jpeg';
