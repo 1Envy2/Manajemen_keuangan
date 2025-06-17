@@ -13,6 +13,16 @@ require_once 'config.php';
 // Ambil data user dari session
 $user_id = $_SESSION['id'];
 $username = $_SESSION['username'];
+$query = "SELECT photo FROM users WHERE id = ?";
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$user = $result->fetch_assoc();
+
+$photo = (!empty($user['photo']) && file_exists('uploads/' . $user['photo'])) 
+         ? 'uploads/' . $user['photo'] 
+         : 'profile.jpeg';
 
 // --- Menampilkan ringkasan keuangan bulanan (untuk bulan berjalan) ---
 $current_month = date('Y-m'); // Format YYYY-MM untuk bulan saat ini
@@ -565,7 +575,7 @@ $conn->close();
         
         <div class="profile">
             <div class="avatar">
-                <img src="https://www.gravatar.com/avatar/<?php echo md5(strtolower(trim($username))); ?>?d=identicon&s=80" alt="Profile">
+                <img src="<?= $photo ?>" alt="Profile">
             </div>
             <span class="welcome">Welcome back</span>
             <span class="name"><?php echo htmlspecialchars($username); ?></span>
