@@ -327,17 +327,6 @@ $conn->close(); // Tutup koneksi database setelah semua operasi selesai
                 <h1>Daftar Kategori</h1> <!-- Judul diubah -->
                 <div class="subtitle">Lihat kategori transaksi yang tersedia</div> <!-- Subtitle diubah -->
             </div>
-            
-            <div class="header-right">
-                <div class="user-info">
-                    <p>Halo, <?php echo htmlspecialchars($username); ?></p>
-                    <span>Pengguna Finote</span>
-                </div>
-                
-                <div class="avatar" style="width: 40px; height: 40px;">
-                    <img src="<?= $photo ?>" alt="User">
-                </div>
-            </div>
         </div>
         
         <div class="content">
