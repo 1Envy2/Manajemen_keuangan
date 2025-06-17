@@ -1,17 +1,17 @@
 <?php
-// add_transaction.php
-session_start();
+// user/add_transaction.php
 
-// Cek jika user belum login, redirect ke halaman login
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
-    header('location: login.php');
-    exit;
-}
+// Panggil config.php terlebih dahulu, karena di dalamnya ada definisi BASE_URL dan koneksi $conn
+require_once '../config.php';
+// Panggil auth.php untuk fungsi-fungsi autentikasi dan otorisasi
+require_once '../includes/auth.php';
 
-require_once 'config.php';
+// Cek akses: Pastikan user sudah login dan role-nya adalah 'user'
+// Fungsi ini akan mengalihkan (redirect) jika user tidak memenuhi syarat
+check_user_access();
 
-// Ambil user_id dari session
-$user_id = $_SESSION['id'];
+// Ambil user_id dari session (disediakan oleh auth.php)
+$user_id = get_user_id();
 
 // Tentukan tipe transaksi dari parameter GET, default ke 'income'
 $type = isset($_GET['type']) ? $_GET['type'] : 'income';
@@ -21,15 +21,27 @@ if (!in_array($type, ['income', 'expense'])) {
 
 $amount = $description = $transaction_date = $category_id = '';
 $amount_err = $description_err = $transaction_date_err = $category_err = '';
-$success_message = '';
-$error_message = ''; // Untuk menampilkan pesan error umum
 
-// Ambil semua kategori dari database (baik global maupun milik user)
-// Filter berdasarkan tipe akan dilakukan di sisi frontend (JavaScript)
+// Untuk menampilkan pesan sukses/error yang diset dari redirect sebelumnya
+$success_message = '';
+$error_message = '';
+if (isset($_SESSION['success_message'])) {
+    $success_message = $_SESSION['success_message'];
+    unset($_SESSION['success_message']);
+}
+if (isset($_SESSION['error_message'])) {
+    $error_message = $_SESSION['error_message'];
+    unset($_SESSION['error_message']);
+}
+
+
+// --- Ambil semua kategori dari database (semuanya global sekarang) ---
+// Kita akan filter berdasarkan tipe (income/expense) untuk tampilan di dropdown
 $categories_from_db = [];
-$sql_categories = "SELECT id, name, type FROM categories WHERE (user_id = ? OR user_id IS NULL) ORDER BY type ASC, name ASC";
+// PERBAIKAN QUERY: Hapus user_id dari WHERE karena kategori global, tambahkan type
+$sql_categories = "SELECT id, name, type FROM categories ORDER BY type ASC, name ASC";
 if ($stmt_cat = $conn->prepare($sql_categories)) {
-    $stmt_cat->bind_param('i', $user_id);
+    // Tidak perlu bind_param untuk user_id di sini karena kategori global
     if ($stmt_cat->execute()) {
         $result_cat = $stmt_cat->get_result();
         while ($row_cat = $result_cat->fetch_assoc()) {
@@ -44,7 +56,7 @@ if ($stmt_cat = $conn->prepare($sql_categories)) {
 
 // Proses form jika data disubmit
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Ambil tipe transaksi dari hidden input (yang diatur oleh JS)
+    // Ambil tipe transaksi dari hidden input
     $post_type = trim($_POST['transaction_type'] ?? '');
     if (!in_array($post_type, ['income', 'expense'])) {
         $type = 'income'; // Fallback
@@ -53,29 +65,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $type = $post_type; // Update tipe berdasarkan submit form
     }
 
-// Validasi Jumlah
+    // Validasi Jumlah
     if (empty(trim($_POST['amount']))) {
         $amount_err = 'Jumlah tidak boleh kosong.';
     } else {
-        // Langkah 1: Sanitasi input untuk menghapus karakter non-numerik yang tidak diinginkan
-        // Kecuali titik atau koma untuk desimal, yang akan kita tangani secara spesifik.
         $clean_amount_input = trim($_POST['amount']);
-        
-        // Mengganti koma desimal dengan titik desimal (jika menggunakan koma)
         $clean_amount_input = str_replace(',', '.', $clean_amount_input);
-        
-        // Hapus semua karakter selain angka dan titik desimal
-        // Ini akan mengubah "Rp 1.000.000,00" menjadi "1000000.00"
-        // atau "1,000,000.00" menjadi "1000000.00"
         $clean_amount_input = preg_replace("/[^0-9.]/", "", $clean_amount_input);
-
-        // Filter untuk memastikan format angka float yang benar
         $parsed_amount = filter_var($clean_amount_input, FILTER_VALIDATE_FLOAT);
 
         if ($parsed_amount === false || $parsed_amount <= 0) {
             $amount_err = 'Jumlah harus angka positif yang valid.';
         } else {
-            // Pastikan jumlah memiliki 2 angka di belakang koma untuk DECIMAL(x, 2)
             $amount = number_format($parsed_amount, 2, '.', ''); 
         }
     }
@@ -85,14 +86,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $category_err = 'Pilih kategori.';
     } else {
         $category_id = trim($_POST['category_id']);
-        // Verifikasi bahwa category_id ini benar-benar milik user/global DAN tipenya sesuai
-        $sql_check_cat = "SELECT id FROM categories WHERE id = ? AND (user_id = ? OR user_id IS NULL) AND type = ?";
+        // PERBAIKAN VALIDASI KATEGORI: Cek id dan type kategori dari tabel global
+        $sql_check_cat = "SELECT id FROM categories WHERE id = ? AND type = ?"; // Asumsi tabel categories punya kolom 'type'
         if ($stmt_check = $conn->prepare($sql_check_cat)) {
-            $stmt_check->bind_param('iis', $category_id, $user_id, $type);
+            $stmt_check->bind_param('is', $category_id, $type);
             $stmt_check->execute();
             $stmt_check->store_result();
             if ($stmt_check->num_rows == 0) {
-                $category_err = 'Kategori tidak valid untuk tipe transaksi ini.';
+                $category_err = 'Kategori tidak valid atau tidak cocok dengan tipe transaksi ini.';
                 $category_id = ''; // Reset invalid category
             }
             $stmt_check->close();
@@ -106,7 +107,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $transaction_date_err = 'Tanggal tidak boleh kosong.';
     } else {
         $transaction_date = trim($_POST['transaction_date']);
-        // Opsional: Validasi format tanggal lebih lanjut bisa ditambahkan di sini
         if (!preg_match("/^\d{4}-\d{2}-\d{2}$/", $transaction_date)) {
              $transaction_date_err = 'Format tanggal tidak valid (YYYY-MM-DD).';
         }
@@ -124,13 +124,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $stmt_insert->bind_param('iisdss', $user_id, $category_id, $type, $amount, $description, $transaction_date);
 
             if ($stmt_insert->execute()) {
-                $success_message = 'Transaksi berhasil ditambahkan!';
-                // Kosongkan form setelah sukses
+                $_SESSION['success_message'] = 'Transaksi berhasil ditambahkan!'; // Set pesan sukses di session
+                // Kosongkan form setelah sukses atau redirect
                 $amount = $description = '';
                 $category_id = ''; // Reset kategori yang dipilih
                 // Opsional: Redirect ke dashboard setelah sukses
-                // header('location: dashboard.php');
-                // exit;
+                header('location: ' . BASE_URL . '/user/dashboard.php'); // Redirect ke dashboard user
+                exit;
             } else {
                 $error_message = 'Terjadi kesalahan saat menyimpan transaksi: ' . $stmt_insert->error;
             }
@@ -139,7 +139,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $error_message = "Gagal menyiapkan query insert transaksi: " . $conn->error;
         }
     } else {
-        $error_message = "Terjadi kesalahan validasi. Mohon periksa kembali input Anda.";
+        // Jika ada error validasi, pesan error sudah diset di variabel _err
+        // $error_message = "Terjadi kesalahan validasi. Mohon periksa kembali input Anda."; // Ini bisa dihilangkan karena sudah ada per field
     }
 }
 
@@ -326,12 +327,10 @@ $conn->close();
                         <option value="<?php echo htmlspecialchars($cat['id']); ?>" 
                                 data-type="<?php echo htmlspecialchars($cat['type']); ?>"
                                 <?php 
-                                // Jika dalam mode edit atau setelah submit dengan error, pilih yang sesuai
+                                // Pilih kategori yang sesuai jika ada error validasi atau setelah reload
                                 if ($category_id == $cat['id']) {
                                     echo 'selected';
                                 }
-                                // Sembunyikan kategori yang tidak sesuai dengan tipe transaksi yang sedang dipilih
-                                // Ini akan ditangani oleh JS
                                 ?>>
                             <?php echo htmlspecialchars($cat['name']); ?>
                         </option>
@@ -354,7 +353,7 @@ $conn->close();
             
             <button type="submit" class="btn-submit"><i class="fas fa-save me-2"></i> Simpan Transaksi</button>
         </form>
-        <a href="dashboard.php" class="back-link"><i class="fas fa-arrow-left me-2"></i> Kembali ke Dashboard</a>
+        <a href="<?= BASE_URL ?>/user/dashboard.php" class="back-link"><i class="fas fa-arrow-left me-2"></i> Kembali ke Dashboard</a>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
@@ -379,26 +378,29 @@ $conn->close();
                     }
                 });
                 
-                // Jika opsi yang terpilih sebelumnya kini tersembunyi, reset ke "Pilih kategori"
-                // Atau jika tidak ada yang terpilih dan opsi pertama bukan yang valid, pilih default
+                // Pastikan kategori yang terpilih valid untuk tipe yang aktif
+                // Jika kategori yang terpilih saat ini tersembunyi, reset pilihan
                 if (categorySelect.selectedOptions.length > 0) {
                     if (categorySelect.selectedOptions[0].style.display === 'none') {
                         categorySelect.value = ""; // Reset jika opsi aktif tersembunyi
                     }
-                } else {
-                    // Jika tidak ada yang dipilih, coba pilih opsi pertama yang terlihat (biasanya "Pilih kategori")
-                    let foundVisibleOption = false;
-                    for (let i = 0; i < categoryOptions.length; i++) {
-                        if (categoryOptions[i].style.display !== 'none') {
-                            categorySelect.value = categoryOptions[i].value;
-                            foundVisibleOption = true;
-                            break;
+                } else if (categorySelect.value !== "") {
+                     // Jika tidak ada yang dipilih di UI, tapi ada nilai di PHP
+                     // Ini kasus saat ada error validasi dan category_id tidak kosong
+                     let foundSelected = false;
+                     categoryOptions.forEach(option => {
+                        if (option.value === "<?php echo htmlspecialchars($category_id); ?>" && option.style.display !== 'none') {
+                            option.selected = true;
+                            foundSelected = true;
+                        } else {
+                            option.selected = false;
                         }
-                    }
-                    if (!foundVisibleOption) { // Fallback jika tidak ada opsi yang terlihat (misal error loading)
+                     });
+                     if (!foundSelected) {
                         categorySelect.value = "";
-                    }
+                     }
                 }
+                
             }
 
             // Inisialisasi tampilan kategori saat halaman pertama kali dimuat
@@ -421,8 +423,7 @@ $conn->close();
                 });
             });
 
-            // Set default date to today if not set on load
-            // Hanya atur jika input kosong (misal baru membuka form, bukan setelah submit dengan error)
+            // Set default date to today if not set on load or after validation error
             if (!document.getElementById('transaction_date').value) {
                 document.getElementById('transaction_date').value = new Date().toISOString().slice(0, 10);
             }

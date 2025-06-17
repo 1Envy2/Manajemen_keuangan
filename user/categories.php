@@ -1,147 +1,56 @@
 <?php
-// categories.php
-session_start();
+// user/categories.php
 
-// Cek jika user belum login, redirect ke halaman login
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
-    header('location: login.php');
-    exit;
+// Panggil config.php terlebih dahulu, karena di dalamnya ada definisi BASE_URL dan koneksi $conn
+require_once '../config.php';
+// Panggil auth.php untuk fungsi-fungsi autentikasi dan otorisasi
+require_once '../includes/auth.php';
+
+// Cek akses: Pastikan user sudah login dan role-nya adalah 'user'
+// Fungsi ini akan mengalihkan (redirect) jika user tidak memenuhi syarat
+check_user_access();
+
+// Ambil user_id dan username dari session
+$user_id = get_user_id();
+$username = $_SESSION['username'] ?? 'User'; // Mengambil dari session
+
+// Ambil data user lengkap dari database jika dibutuhkan (misalnya untuk foto)
+$user_data_from_db = [];
+$query_user_data = "SELECT photo FROM users WHERE id = ?";
+if ($stmt_user_data = $conn->prepare($query_user_data)) {
+    $stmt_user_data->bind_param("i", $user_id);
+    if ($stmt_user_data->execute()) {
+        $result_user_data = $stmt_user_data->get_result();
+        $user_data_from_db = $result_user_data->fetch_assoc();
+    }
+    $stmt_user_data->close();
 }
 
-require_once 'config.php';
+// Tentukan path foto profil
+// Asumsi 'uploads/' ada di root proyek, dan 'assets/profile.jpeg' ada di public/assets/
+$photo = (!empty($user_data_from_db['photo']) && file_exists('uploads/' . $user_data_from_db['photo']))
+         ? BASE_URL . '/uploads/' . $user_data_from_db['photo']
+         : BASE_URL . '/assets/profile.jpeg';
 
-$user_id = $_SESSION['id'];
-$username = $_SESSION['username'];
 
-$name = $type = '';
-$name_err = $type_err = '';
-$success_message = '';
-$edit_id = null;
-$current_category_name = '';
-$current_category_type = '';
-
-// --- Handle Create & Update ---
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Validasi Name
-    if (empty(trim($_POST['name']))) {
-        $name_err = 'Nama kategori tidak boleh kosong.';
-    } else {
-        $name = trim($_POST['name']);
-    }
-
-    // Validasi Type
-    if (empty(trim($_POST['type']))) {
-        $type_err = 'Pilih tipe kategori.';
-    } elseif (!in_array(trim($_POST['type']), ['income', 'expense'])) {
-        $type_err = 'Tipe kategori tidak valid.';
-    } else {
-        $type = trim($_POST['type']);
-    }
-
-    $post_edit_id = isset($_POST['edit_id']) ? intval($_POST['edit_id']) : null;
-
-    if (empty($name_err) && empty($type_err)) {
-        if ($post_edit_id > 0) { // Update existing category
-            // Pastikan kategori yang diedit milik user atau global
-            $sql = "UPDATE categories SET name = ?, type = ? WHERE id = ? AND (user_id = ? OR user_id IS NULL)";
-            if ($stmt = $conn->prepare($sql)) {
-                $stmt->bind_param('ssii', $name, $type, $post_edit_id, $user_id);
-                if ($stmt->execute()) {
-                    if ($stmt->affected_rows > 0) {
-                        $success_message = 'Kategori berhasil diperbarui.';
-                    } else {
-                        $success_message = 'Tidak ada perubahan pada kategori atau kategori tidak ditemukan/bukan milik Anda.';
-                    }
-                } else {
-                    echo 'Error updating category: ' . $stmt->error;
-                }
-                $stmt->close();
-            }
-        } else { // Create new category
-            $sql = "INSERT INTO categories (user_id, name, type) VALUES (?, ?, ?)";
-            if ($stmt = $conn->prepare($sql)) {
-                $stmt->bind_param('iss', $user_id, $name, $type);
-                if ($stmt->execute()) {
-                    $success_message = 'Kategori berhasil ditambahkan.';
-                    // Clear form after successful addition
-                    $name = $type = '';
-                } else {
-                    echo 'Error adding category: ' . $stmt->error;
-                }
-                $stmt->close();
-            }
-        }
-    }
-}
-
-// --- Handle Delete ---
-if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['id'])) {
-    $delete_id = intval($_GET['id']);
-    // Cek apakah kategori ini milik user atau global sebelum menghapus
-    // Jika ada transaksi yang menggunakan kategori ini, ON DELETE RESTRICT akan mencegah penghapusan
-    $sql = "DELETE FROM categories WHERE id = ? AND (user_id = ? OR user_id IS NULL)";
-    if ($stmt = $conn->prepare($sql)) {
-        $stmt->bind_param('ii', $delete_id, $user_id);
-        if ($stmt->execute()) {
-            if ($stmt->affected_rows > 0) {
-                $success_message = 'Kategori berhasil dihapus.';
-            } else {
-                $success_message = 'Kategori tidak dapat dihapus (mungkin sedang digunakan atau bukan milik Anda).';
-            }
-        } else {
-            // Tangani error jika ada foreign key constraint (ON DELETE RESTRICT)
-            if ($conn->errno == 1451) { // MySQL error code for foreign key constraint fail
-                $success_message = 'Kategori tidak dapat dihapus karena masih digunakan dalam transaksi.';
-            } else {
-                echo 'Error deleting category: ' . $stmt->error;
-            }
-        }
-        $stmt->close();
-    }
-    // Redirect untuk membersihkan parameter GET setelah delete
-    header('location: categories.php?msg=' . urlencode($success_message));
-    exit;
-}
-
-// --- Handle Edit (Populate Form) ---
-if (isset($_GET['action']) && $_GET['action'] == 'edit' && isset($_GET['id'])) {
-    $edit_id = intval($_GET['id']);
-    $sql_edit = "SELECT name, type FROM categories WHERE id = ? AND (user_id = ? OR user_id IS NULL)";
-    if ($stmt_edit = $conn->prepare($sql_edit)) {
-        $stmt_edit->bind_param('ii', $edit_id, $user_id);
-        $stmt_edit->execute();
-        $result_edit = $stmt_edit->get_result();
-        if ($result_edit->num_rows == 1) {
-            $row_edit = $result_edit->fetch_assoc();
-            $current_category_name = $row_edit['name'];
-            $current_category_type = $row_edit['type'];
-        } else {
-            // Kategori tidak ditemukan atau bukan milik user, reset edit mode
-            $edit_id = null;
-        }
-        $stmt_edit->close();
-    }
-}
-
-// Tampilkan pesan sukses setelah redirect dari delete
-if (isset($_GET['msg'])) {
-    $success_message = htmlspecialchars($_GET['msg']);
-}
-
-// Ambil semua kategori pengguna (dan global)
+// --- Hanya ambil daftar kategori global (tanpa user_id di query) ---
 $categories_list = [];
-$sql_list = "SELECT id, name, type FROM categories WHERE user_id = ? OR user_id IS NULL ORDER BY type DESC, name ASC";
+$sql_list = "SELECT id, name, type FROM categories ORDER BY type ASC, name ASC"; // Urutkan berdasarkan tipe lalu nama
 if ($stmt_list = $conn->prepare($sql_list)) {
-    $stmt_list->bind_param('i', $user_id);
-    $stmt_list->execute();
-    $result_list = $stmt_list->get_result();
-    while ($row_list = $result_list->fetch_assoc()) {
-        $categories_list[] = $row_list;
+    // Tidak ada bind_param untuk user_id di sini karena kategori global
+    if ($stmt_list->execute()) {
+        $result_list = $stmt_list->get_result();
+        while ($row_list = $result_list->fetch_assoc()) {
+            $categories_list[] = $row_list;
+        }
+    } else {
+        // Tangani error jika gagal mengambil kategori
+        error_log("Error fetching categories for user: " . $stmt_list->error);
     }
     $stmt_list->close();
 }
 
-$conn->close();
+$conn->close(); // Tutup koneksi database setelah semua operasi selesai
 ?>
 
 <!DOCTYPE html>
@@ -149,11 +58,12 @@ $conn->close();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finote - Kelola Kategori</title>
+    <title>Finote - Daftar Kategori</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     
     <style>
+        /* CSS yang disalin dari dashboard user Anda, idealnya dipindahkan ke file CSS terpisah */
         :root {
             --color-dark-blue: #254E7A;
             --color-medium-blue: #5584B0;
@@ -175,6 +85,7 @@ $conn->close();
             color: var(--color-off-white);
             padding: 20px;
             box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            flex-shrink: 0;
         }
 
         .logo {
@@ -346,7 +257,7 @@ $conn->close();
         }
         .table tbody tr:hover {
             background-color: var(--color-light-blue) !important;
-            cursor: default; /* Ubah menjadi default karena tidak ada link di baris tabel */
+            cursor: default;
         }
         .table-responsive {
             margin-top: 20px;
@@ -370,7 +281,7 @@ $conn->close();
         
         <div class="profile">
             <div class="avatar">
-                <img src="https://www.gravatar.com/avatar/<?php echo md5(strtolower(trim($username))); ?>?d=identicon&s=80" alt="Profile">
+                <img src="<?= $photo ?>" alt="Profile">
             </div>
             <span class="welcome">Welcome back</span>
             <span class="name"><?php echo htmlspecialchars($username); ?></span>
@@ -378,31 +289,31 @@ $conn->close();
         
         <ul class="menu">
             <li class="menu-item">
-                <a href="dashboard.php">
+                <a href="<?= BASE_URL ?>/user/dashboard.php">
                     <span class="menu-icon"><i class="fas fa-tachometer-alt"></i></span>
                     <span>Dashboard</span>
                 </a>
             </li>
             <li class="menu-item">
-                <a href="transaction_history.php">
+                <a href="<?= BASE_URL ?>/user/riwayat.php">
                     <span class="menu-icon"><i class="fas fa-exchange-alt"></i></span>
                     <span>Riwayat</span>
                 </a>
             </li>
             <li class="menu-item active">
-                <a href="categories.php">
+                <a href="<?= BASE_URL ?>/user/categories.php">
                     <span class="menu-icon"><i class="fas fa-tags"></i></span>
                     <span>Kategori</span>
                 </a>
             </li>
             <li class="menu-item">
-                <a href="settings.php">
+                <a href="<?= BASE_URL ?>/user/profile.php">
                     <span class="menu-icon"><i class="fas fa-cog"></i></span>
-                    <span>Settings</span>
+                    <span>Profile</span>
                 </a>
             </li>
             <li class="menu-item">
-                <a href="logout.php">
+                <a href="<?= BASE_URL ?>/logout.php">
                     <span class="menu-icon"><i class="fas fa-sign-out-alt"></i></span>
                     <span>Log Out</span>
                 </a>
@@ -413,8 +324,8 @@ $conn->close();
     <div class="main-content">
         <div class="header">
             <div class="title">
-                <h1>Kelola Kategori</h1>
-                <div class="subtitle">Tambah, edit, atau hapus kategori Anda</div>
+                <h1>Daftar Kategori</h1> <!-- Judul diubah -->
+                <div class="subtitle">Lihat kategori transaksi yang tersedia</div> <!-- Subtitle diubah -->
             </div>
             
             <div class="header-right">
@@ -424,7 +335,7 @@ $conn->close();
                 </div>
                 
                 <div class="avatar" style="width: 40px; height: 40px;">
-                    <img src="https://www.gravatar.com/avatar/<?php echo md5(strtolower(trim($username))); ?>?d=identicon&s=40" alt="User">
+                    <img src="<?= $photo ?>" alt="User">
                 </div>
             </div>
         </div>
@@ -432,49 +343,12 @@ $conn->close();
         <div class="content">
             <div class="card mb-4">
                 <div class="card-header">
-                    <div class="card-title"><?php echo ($edit_id ? 'Edit' : 'Tambah'); ?> Kategori</div>
-                </div>
-                <div class="card-content">
-                    <?php if (!empty($success_message)): ?>
-                        <div class="alert alert-success" role="alert">
-                            <?php echo $success_message; ?>
-                        </div>
-                    <?php endif; ?>
-                    <form action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']); ?>" method="post">
-                        <input type="hidden" name="edit_id" value="<?php echo htmlspecialchars($edit_id ?? ''); ?>">
-                        
-                        <div class="mb-3">
-                            <label for="name" class="form-label">Nama Kategori</label>
-                            <input type="text" class="form-control" id="name" name="name" value="<?php echo htmlspecialchars($current_category_name); ?>" placeholder="Contoh: Belanja Bulanan">
-                            <span class="help-block"><?php echo $name_err; ?></span>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="type" class="form-label">Tipe Kategori</label>
-                            <select class="form-select" id="type" name="type">
-                                <option value="">Pilih Tipe</option>
-                                <option value="income" <?php echo ($current_category_type == 'income' ? 'selected' : ''); ?>>Pemasukan</option>
-                                <option value="expense" <?php echo ($current_category_type == 'expense' ? 'selected' : ''); ?>>Pengeluaran</option>
-                            </select>
-                            <span class="help-block"><?php echo $type_err; ?></span>
-                        </div>
-                        
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i> <?php echo ($edit_id ? 'Perbarui' : 'Tambah'); ?> Kategori</button>
-                        <?php if ($edit_id): ?>
-                            <a href="categories.php" class="btn btn-secondary ms-2"><i class="fas fa-times me-2"></i> Batalkan Edit</a>
-                        <?php endif; ?>
-                    </form>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">Daftar Kategori</div>
+                    <div class="card-title">Daftar Kategori Transaksi</div>
                 </div>
                 <div class="card-content">
                     <?php if (empty($categories_list)): ?>
                         <div class="alert alert-info" role="alert">
-                            Belum ada kategori yang ditambahkan.
+                            Belum ada kategori yang tersedia.
                         </div>
                     <?php else: ?>
                         <div class="table-responsive">
@@ -483,7 +357,6 @@ $conn->close();
                                     <tr>
                                         <th>Nama Kategori</th>
                                         <th>Tipe</th>
-                                        <th class="text-center">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -495,10 +368,6 @@ $conn->close();
                                                     <?php echo ($cat['type'] == 'income' ? 'Pemasukan' : 'Pengeluaran'); ?>
                                                 </span>
                                             </td>
-                                            <td class="text-center">
-                                                <a href="categories.php?action=edit&id=<?php echo $cat['id']; ?>" class="btn btn-sm btn-info text-white me-1" title="Edit"><i class="fas fa-edit"></i></a>
-                                                <a href="categories.php?action=delete&id=<?php echo $cat['id']; ?>" class="btn btn-sm btn-danger" title="Hapus" onclick="return confirm('Apakah Anda yakin ingin menghapus kategori ini? Menghapus kategori yang sedang digunakan dalam transaksi akan menyebabkan error.');"><i class="fas fa-trash-alt"></i></a>
-                                            </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>
@@ -507,6 +376,7 @@ $conn->close();
                     <?php endif; ?>
                 </div>
             </div>
+            <!-- Form tambah/edit kategori dihilangkan dari sini -->
         </div>
     </div>
     

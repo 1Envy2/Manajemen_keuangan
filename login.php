@@ -3,13 +3,13 @@
 // Mulai sesi
 session_start();
 
-// Cek jika user sudah login, redirect ke dashboard
-if (isset($_SESSION['loggedin']) && $_SESSION['loggedin'] === true) {
-    header('location: dashboard.php');
-    exit;
-}
+// Panggil config.php terlebih dahulu untuk BASE_URL dan koneksi $conn
+require_once 'config.php';
+// Panggil auth.php untuk fungsi-fungsi autentikasi dan otorisasi
+require_once 'includes/auth.php'; // Pastikan path ini benar (dari root ke includes/auth.php)
 
-require_once 'config.php'; // Pastikan config.php sudah di-update dengan DB_NAME 'finote_db'
+// Redirect jika user sudah login (menggunakan fungsi dari auth.php)
+redirect_if_logged_in();
 
 $username = $password = '';
 $username_err = $password_err = '';
@@ -32,7 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     // Cek kredensial
     if (empty($username_err) && empty($password_err)) {
-        $sql = "SELECT id, username, password FROM users WHERE username = ?";
+        // PERBAIKAN: Tambahkan `role` di SELECT statement
+        $sql = "SELECT id, username, password, role FROM users WHERE username = ?";
 
         if ($stmt = $conn->prepare($sql)) {
             $stmt->bind_param('s', $param_username);
@@ -43,19 +44,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
                 // Cek jika username ada, lalu verifikasi password
                 if ($stmt->num_rows == 1) {
-                    $stmt->bind_result($id, $username, $hashed_password);
+                    // PERBAIKAN: Tambahkan `$role` di bind_result
+                    $stmt->bind_result($id, $username, $hashed_password, $role);
                     if ($stmt->fetch()) {
                         if (password_verify($password, $hashed_password)) {
-                            // Password benar, mulai sesi
-                            // session_start(); // Sudah di-start di awal
-
-                            // Simpan data di session
+                            // Password benar, simpan data di session variables
                             $_SESSION['loggedin'] = true;
                             $_SESSION['id'] = $id;
                             $_SESSION['username'] = $username;
+                            $_SESSION['role'] = $role; // <<< Simpan role ke session
 
-                            // Redirect ke dashboard
-                            header('location: dashboard.php');
+                            // Redirect ke dashboard yang sesuai berdasarkan role
+                            if ($role === 'admin') {
+                                header('location: ' . BASE_URL . '/admin/dashboard.php');
+                            } else {
+                                header('location: ' . BASE_URL . '/user/dashboard.php');
+                            }
+                            exit; // Penting: Hentikan eksekusi script setelah redirect
                         } else {
                             // Password salah
                             $password_err = 'Password yang Anda masukkan salah.';
@@ -72,7 +77,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 
-    $conn->close(); // Tutup koneksi
+    // Koneksi $conn akan ditutup secara otomatis di akhir script
+    // atau Anda bisa tambahkan $conn->close(); di sini jika tidak ada logika lain
+    // yang membutuhkannya setelah proses login.
+    $conn->close();
 }
 ?>
 
@@ -83,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Finote - Login</title>
     <style>
+        /* CSS tetap sama */
         :root {
             --color-dark-blue: #254E7A;
             --color-medium-blue: #5584B0;

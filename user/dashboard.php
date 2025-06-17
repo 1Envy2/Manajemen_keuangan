@@ -1,28 +1,38 @@
 <?php
+// user/dashboard.php
 
-session_start();
+// Panggil config.php terlebih dahulu, karena di dalamnya ada definisi BASE_URL dan koneksi $conn
+require_once '../config.php';
+// Panggil auth.php untuk fungsi-fungsi autentikasi dan otorisasi
+require_once '../includes/auth.php';
 
-// Cek jika user belum login, redirect ke halaman login
-if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
-    header('location: login.php');
-    exit;
+// Cek akses: Pastikan user sudah login dan role-nya adalah 'user'
+// Fungsi ini akan mengalihkan (redirect) jika user tidak memenuhi syarat
+check_user_access();
+
+// Ambil data user dari session (sudah disediakan oleh auth.php)
+$user_id = get_user_id();
+// Ambil username dari session (sudah disediakan oleh auth.php, atau dari DB jika diperlukan lebih banyak data)
+$username = $_SESSION['username'] ?? 'User'; // Gunakan username dari session
+
+// Ambil data user lengkap dari database jika dibutuhkan (misalnya untuk foto)
+$user_data_from_db = [];
+$query_user_data = "SELECT photo FROM users WHERE id = ?";
+if ($stmt_user_data = $conn->prepare($query_user_data)) {
+    $stmt_user_data->bind_param("i", $user_id);
+    if ($stmt_user_data->execute()) {
+        $result_user_data = $stmt_user_data->get_result();
+        $user_data_from_db = $result_user_data->fetch_assoc();
+    }
+    $stmt_user_data->close();
 }
 
-require_once 'config.php';
+// Tentukan path foto profil
+// Asumsi 'uploads/' ada di root proyek
+$photo = (!empty($user_data_from_db['photo']) && file_exists('uploads/' . $user_data_from_db['photo']))
+         ? BASE_URL . '/uploads/' . $user_data_from_db['photo']
+         : BASE_URL . '/assets/profile.jpeg'; // Asumsi 'assets/profile.jpeg' ada di folder 'public/assets/'
 
-// Ambil data user dari session
-$user_id = $_SESSION['id'];
-$query = "SELECT username, photo FROM users WHERE id = ?";
-$stmt = $conn->prepare($query);
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$result = $stmt->get_result();
-$user = $result->fetch_assoc();
-
-$username = $user['username'] ?? 'User';
-$photo = (!empty($user['photo']) && file_exists('uploads/' . $user['photo'])) 
-         ? 'uploads/' . $user['photo'] 
-         : 'profile.jpeg';
 
 // --- Menampilkan ringkasan keuangan bulanan (untuk bulan berjalan) ---
 $current_month = date('Y-m'); // Format YYYY-MM untuk bulan saat ini
@@ -92,10 +102,10 @@ $balance_overall = $total_income_overall - $total_expense_overall;
 // --- Mengambil Transaksi Terakhir (misal 5 transaksi) ---
 $latest_transactions = [];
 $sql_latest_transactions = "SELECT t.amount, t.description, t.transaction_date, t.type, c.name AS category_name
-                            FROM transactions t
-                            JOIN categories c ON t.category_id = c.id
-                            WHERE t.user_id = ?
-                            ORDER BY t.created_at DESC LIMIT 5"; // Urutkan berdasarkan waktu dibuat
+                             FROM transactions t
+                             JOIN categories c ON t.category_id = c.id
+                             WHERE t.user_id = ?
+                             ORDER BY t.created_at DESC LIMIT 5"; // Urutkan berdasarkan waktu dibuat
 if ($stmt_latest = $conn->prepare($sql_latest_transactions)) {
     $stmt_latest->bind_param('i', $user_id);
     if ($stmt_latest->execute()) {
@@ -108,7 +118,7 @@ if ($stmt_latest = $conn->prepare($sql_latest_transactions)) {
 }
 
 
-$conn->close();
+$conn->close(); // Tutup koneksi setelah semua query selesai
 ?>
 
 <!DOCTYPE html>
@@ -333,7 +343,7 @@ $conn->close();
         .header .avatar { /* Override avatar di header */
             width: 40px;
             height: 40px;
-            border: none; 
+            border: none;
         }
 
         .content {
@@ -583,27 +593,26 @@ $conn->close();
         
         <ul class="menu">
             <li class="menu-item active">
-                <a href="dashboard.php">
+                <a href="<?= BASE_URL ?>/user/dashboard.php">
                     <span class="menu-icon"><i class="fas fa-tachometer-alt"></i></span>
                     <span>Dashboard</span>
                 </a>
             </li>
             <li class="menu-item">
-                <a href="riwayat.html"> <span class="menu-icon"><i class="fas fa-exchange-alt"></i></span>
+                <a href="<?= BASE_URL ?>/user/riwayat.php"> <span class="menu-icon"><i class="fas fa-exchange-alt"></i></span>
                     <span>Riwayat</span>
                 </a>
             </li>
             <li class="menu-item">
-                <a href="profile.php"> <span class="menu-icon"><i class="fas fa-cog"></i></span>
+                <a href="<?= BASE_URL ?>/user/profile.php"> <span class="menu-icon"><i class="fas fa-cog"></i></span>
                     <span>Profile</span>
                 </a>
             </li>
             <li class="menu-item">
-                <a href="logout.php">
-                    <span class="menu-icon"><i class="fas fa-sign-out-alt"></i></span>
-                    <span>Log Out</span>
-                </a>
-            </li>
+    <a href="<?= BASE_URL ?>/logout.php"> <span class="menu-icon"><i class="fas fa-sign-out-alt"></i></span>
+        <span>Log Out</span>
+    </a>
+</li>
         </ul>
     </div>
     
@@ -674,7 +683,7 @@ $conn->close();
                                     <?php endforeach; ?>
                                 </div>
                             <?php endif; ?>
-                            <a href="riwayat.php" class="btn btn-outline-primary btn-sm mt-3 d-block"><i class="fas fa-history me-2"></i> Lihat Semua Transaksi</a>
+                            <a href="<?= BASE_URL ?>/user/riwayat.php" class="btn btn-outline-primary btn-sm mt-3 d-block"><i class="fas fa-history me-2"></i> Lihat Semua Transaksi</a>
                         </div>
                     </div>
                 </div>
@@ -684,8 +693,8 @@ $conn->close();
                         <div class="card-title">Aksi Cepat</div>
                     </div>
                     <div class="card-content text-center">
-                        <a href="add_transaction.php?type=income" class="btn btn-success d-block mb-3 p-3 fs-5" style="background-color: #28a745; border-color: #28a745;"><i class="fas fa-plus-circle me-2"></i> Tambah Pemasukan</a>
-                        <a href="add_transaction.php?type=expense" class="btn btn-danger d-block p-3 fs-5" style="background-color: #dc3545; border-color: #dc3545;"><i class="fas fa-minus-circle me-2"></i> Tambah Pengeluaran</a>
+                        <a href="<?= BASE_URL ?>/user/add_transaction.php?type=income" class="btn btn-success d-block mb-3 p-3 fs-5" style="background-color: #28a745; border-color: #28a745;"><i class="fas fa-plus-circle me-2"></i> Tambah Pemasukan</a>
+                        <a href="<?= BASE_URL ?>/user/add_transaction.php?type=expense" class="btn btn-danger d-block p-3 fs-5" style="background-color: #dc3545; border-color: #dc3545;"><i class="fas fa-minus-circle me-2"></i> Tambah Pengeluaran</a>
                         
                         <hr class="my-4">
 
@@ -701,7 +710,7 @@ $conn->close();
                                 Saldo: <span class="badge bg-primary rounded-pill" style="background-color: var(--color-medium-blue) !important;">Rp <?php echo number_format($balance_month, 2, ',', '.'); ?></span>
                             </li>
                         </ul>
-                        <a href="riwayat.php" class="btn btn-outline-primary btn-sm mt-3 d-block" style="border-color: var(--color-medium-blue); color: var(--color-medium-blue);"><i class="fas fa-history me-2"></i> Lihat Semua Riwayat</a>
+                        <a href="<?= BASE_URL ?>/user/riwayat.php" class="btn btn-outline-primary btn-sm mt-3 d-block" style="border-color: var(--color-medium-blue); color: var(--color-medium-blue);"><i class="fas fa-history me-2"></i> Lihat Semua Riwayat</a>
                     </div>
                 </div>
             </div>
