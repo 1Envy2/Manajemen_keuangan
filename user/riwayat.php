@@ -29,8 +29,8 @@ if ($stmt_user_data = $conn->prepare($query_user_data)) {
 // Tentukan path foto profil
 // Asumsi 'uploads/' ada di root proyek, dan 'assets/profile.jpeg' ada di public/assets/
 $photo_db_name = $user_data_from_db['photo'] ?? '';
-$photo_url = (!empty($photo_db_name) && file_exists('../uploads/' . $photo_db_name)) // Perbaikan path: ../uploads
-             ? BASE_URL . '/uploads/' . $photo_db_name
+$photo_url = (!empty($photo_db_name) && file_exists('uploads/' . $photo_db_name)) // Perbaikan path: ../uploads
+             ? BASE_URL . 'user/uploads/' . $photo_db_name
              : BASE_URL . '/assets/profile.jpeg'; // Gunakan foto default lokal
 
 $filter = $_GET['filter'] ?? 'all';
