@@ -1,24 +1,15 @@
 <?php
 // user/edit_profile.php
 
-// Panggil config.php terlebih dahulu, karena di dalamnya ada definisi BASE_URL dan koneksi $conn
 require_once '../config.php';
-// Panggil auth.php untuk fungsi-fungsi autentikasi dan otorisasi
 require_once '../includes/auth.php';
-
-// Cek akses: Pastikan user sudah login dan role-nya adalah 'user'
-// Fungsi ini akan mengalihkan (redirect) jika user tidak memenuhi syarat
 check_user_access();
 
-// Ambil user_id dari session (disediakan oleh auth.php)
 $id = get_user_id();
-
 $username = '';
 $email = '';
 $photo = '';
 $phone = '';
-$firstName = '';
-$lastName = '';
 
 $query = "SELECT username, email, photo, phone FROM users WHERE id = ?";
 if ($stmt = $conn->prepare($query)) {
@@ -29,22 +20,15 @@ if ($stmt = $conn->prepare($query)) {
             $data = $result->fetch_assoc();
             $username = $data['username'];
             $email = $data['email'];
-            $photo_db = $data['photo'] ?? ''; // Nama file foto dari DB
+            $photo_db = $data['photo'] ?? '';
             $phone = $data['phone'] ?? '';
 
-            // Tentukan path foto profil
-            // Asumsi folder 'uploads/' ada di root proyek
-            $photo_path = (!empty($photo_db) && file_exists('uploads/' . $photo_db))
-                          ? BASE_URL . '/uploads/' . $photo_db
-                          : BASE_URL . '/assets/profile.jpeg'; // Asumsi 'assets/profile.jpeg' ada di public/assets/
-
-            // Untuk form nama depan/belakang: Jika username satu kata, lastName akan kosong
-            $name_parts = explode(' ', $username, 2); // Batasi 2 bagian untuk nama depan/belakang
-            $firstName = $name_parts[0];
-            $lastName = $name_parts[1] ?? ''; // Jika hanya satu kata, lastName akan kosong
-
+            $relative_path = 'uploads/' . $photo_db;
+            $absolute_path = __DIR__ . '/' . $relative_path;
+            $photo = (!empty($photo_db) && file_exists($absolute_path))
+                     ? BASE_URL . 'user/uploads/' . $photo_db
+                     : BASE_URL . '/assets/profile.jpeg';
         } else {
-            // User tidak ditemukan (seharusnya tidak terjadi setelah check_user_access)
             die("User tidak ditemukan.");
         }
     } else {
@@ -54,8 +38,7 @@ if ($stmt = $conn->prepare($query)) {
 } else {
     die("Error menyiapkan query: " . $conn->error);
 }
-
-$conn->close(); // Tutup koneksi setelah semua query selesai
+$conn->close();
 ?>
 
 <!DOCTYPE html>
@@ -64,11 +47,9 @@ $conn->close(); // Tutup koneksi setelah semua query selesai
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Finote - Edit Profile</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
     <style>
-        /* Menggunakan variabel warna dari file lain untuk konsistensi */
         :root {
             --color-dark-blue: #254E7A;
             --color-medium-blue: #5584B0;
@@ -76,49 +57,39 @@ $conn->close(); // Tutup koneksi setelah semua query selesai
             --color-baby-blue: #CBE3EF;
             --color-off-white: #F7F3EA;
         }
-
         body {
-            margin: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            background-color: var(--color-baby-blue); /* Latar belakang dari palet */
+            background-color: var(--color-baby-blue);
             min-height: 100vh;
+            display: flex;
         }
-
         .sidebar {
-            width: 280px; /* Konsisten dengan dashboard */
+            width: 280px;
             background-color: var(--color-dark-blue);
             color: var(--color-off-white);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
             padding: 20px;
-            box-sizing: border-box;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            flex-shrink: 0;
         }
-
-        .sidebar .top {
-            display: flex;
-            flex-direction: column;
-        }
-
         .logo {
-            font-size: 1.5rem; /* Konsisten dengan dashboard */
-            font-weight: bold;
-            margin-bottom: 30px; /* Konsisten dengan dashboard */
             display: flex;
             align-items: center;
             gap: 10px;
+            margin-bottom: 30px;
+            font-size: 1.5rem;
+            font-weight: bold;
         }
-        .logo-icon { /* Tambahan untuk logo ikon */
-            width: 40px; height: 40px; background-color: var(--color-off-white);
-            color: var(--color-dark-blue); display: flex; align-items: center;
-            justify-content: center; border-radius: 5px; font-weight: bold;
-            font-size: 1.2em;
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background-color: var(--color-off-white);
+            color: var(--color-dark-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            font-weight: bold;
         }
-
-        .profile-sidebar {
+        .profile {
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -126,163 +97,63 @@ $conn->close(); // Tutup koneksi setelah semua query selesai
             padding-bottom: 20px;
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
-
-        .profile-sidebar img {
-            width: 80px; /* Konsisten dengan dashboard */
+        .avatar {
+            width: 80px;
             height: 80px;
             border-radius: 50%;
-            margin-bottom: 10px;
-            object-fit: cover;
+            background-color: var(--color-medium-blue);
+            overflow: hidden;
             border: 3px solid var(--color-off-white);
+            margin-bottom: 10px;
         }
-
-        .profile-sidebar p {
-            margin: 0;
-            font-size: 1.1rem; /* Konsisten dengan dashboard */
-            font-weight: 600;
-            color: var(--color-off-white);
-        }
-        .profile-sidebar span { /* Tambahan untuk welcome text */
-            font-size: 0.85rem; color: var(--color-baby-blue); margin-top: 5px;
-        }
-
-
-        .sidebar ul {
-            list-style: none;
-            padding: 0;
+        .avatar img {
             width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
-
-        .sidebar ul li {
-            padding: 12px 15px; /* Konsisten dengan dashboard */
-            border-radius: 5px; /* Konsisten dengan dashboard */
-            margin-bottom: 8px; /* Konsisten dengan dashboard */
-            transition: 0.3s;
+        .welcome { font-size: 0.85rem; color: var(--color-baby-blue); }
+        .name { font-weight: 600; font-size: 1.1rem; color: var(--color-off-white); }
+        .menu { list-style: none; padding: 0; margin: 0; }
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            border-radius: 5px;
+            margin-bottom: 8px;
             cursor: pointer;
         }
-
-        .sidebar ul li a {
+        .menu-item:hover { background-color: var(--color-medium-blue); }
+        .menu-item.active {
+            background-color: var(--color-medium-blue);
+            font-weight: 600;
+        }
+        .menu-item a {
+            color: inherit;
             text-decoration: none;
-            color: inherit; /* Warisi warna dari parent */
-            display: flex; /* Agar ikon dan teks sejajar */
+            display: flex;
             align-items: center;
             width: 100%;
-            font-size: 1em;
         }
-        .sidebar ul li a .fas { /* Style untuk ikon */
+        .menu-icon {
             margin-right: 15px;
             width: 20px;
             text-align: center;
             font-size: 1.1em;
         }
-
-        .sidebar ul li:hover {
-            background-color: var(--color-medium-blue);
-        }
-
-        .sidebar ul li.active {
-            background-color: var(--color-medium-blue);
-            font-weight: 600;
-        }
-
-        .logout {
-            text-align: center;
-            padding: 12px 15px; /* Konsisten dengan menu item */
-            background-color: var(--color-medium-blue); /* Warna konsisten */
-            border-radius: 5px; /* Konsisten */
-            cursor: pointer;
-            transition: 0.3s;
-            margin-top: auto; /* Push ke bawah */
-        }
-
-        .logout:hover {
-            background-color: var(--color-light-blue);
-            color: var(--color-dark-blue); /* Ubah warna teks saat hover */
-        }
-        .logout a { /* Overide untuk link logout */
-            color: inherit !important; /* Pastikan warna teks berubah saat hover parent */
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            font-weight: bold;
-        }
-        .logout a .fas {
-            margin-right: 15px;
-        }
-
-
         .main-content {
             flex: 1;
             padding: 30px;
             background-color: var(--color-baby-blue);
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
         }
-
         .section-card {
-            background: var(--color-off-white); /* Warna kartu dari palet */
+            background: var(--color-off-white);
             padding: 30px;
             border-radius: 12px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-            margin-bottom: 30px;
-            width: 100%;
             max-width: 700px;
-            position: relative;
-            text-align: left;
-            border: 1px solid var(--color-baby-blue); /* Border konsisten */
+            margin: auto;
         }
-
-        .section-card h2 {
-            margin: 0 0 20px 0;
-            font-size: 24px;
-            color: var(--color-dark-blue);
-            text-align: center;
-        }
-
-        label {
-            display: block;
-            margin-top: 15px;
-            font-weight: bold;
-            color: var(--color-dark-blue); /* Warna dari palet */
-            font-size: 16px;
-        }
-
-        input[type="text"],
-        input[type="email"],
-        input[type="tel"],
-        input[type="file"] { /* Style untuk input file */
-            width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            border-radius: 6px;
-            border: 1px solid var(--color-medium-blue); /* Border dari palet */
-            font-size: 16px;
-            box-sizing: border-box;
-            background-color: #fcfcfc;
-            transition: border-color 0.3s;
-        }
-        input[type="text"]:focus,
-        input[type="email"]:focus,
-        input[type="tel"]:focus,
-        input[type="file"]:focus {
-            border-color: var(--color-dark-blue);
-            outline: none;
-            box-shadow: 0 0 0 0.25rem rgba(37, 78, 122, 0.25);
-        }
-        .invalid-feedback { /* Untuk validasi Bootstrap */
-            color: #dc3545;
-            font-size: 0.85em;
-            margin-top: 5px;
-            display: block;
-        }
-
-
         .btn-submit {
-            margin-top: 25px;
             background-color: var(--color-dark-blue);
             color: var(--color-off-white);
             padding: 12px 25px;
@@ -295,71 +166,63 @@ $conn->close(); // Tutup koneksi setelah semua query selesai
             max-width: 200px;
             margin-left: auto;
             margin-right: auto;
-            transition: background-color 0.3s;
-        }
-
-        .btn-submit:hover {
-            background-color: var(--color-medium-blue);
         }
     </style>
 </head>
 <body>
-
-    <div class="sidebar">
-        <div class="top">
-            <div class="logo">
-                <div class="logo-icon">F</div> Finote
-            </div>
-            <div class="profile-sidebar">
-                <img src="<?= htmlspecialchars($photo_path) ?>" alt="Profile" />
-                <span class="welcome">Welcome back</span>
-                <p><?= htmlspecialchars($username) ?></p>
-            </div>
-            <ul>
-                <li><a href="<?= BASE_URL ?>/user/dashboard.php"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
-                <li><a href="<?= BASE_URL ?>/user/riwayat.php"><i class="fas fa-exchange-alt"></i> Riwayat</a></li>
-                <li><a href="<?= BASE_URL ?>/user/categories.php"><i class="fas fa-tags"></i> Kategori</a></li>
-                <li class="active"><a href="<?= BASE_URL ?>/user/profile.php"><i class="fas fa-cog"></i> Profile</a></li>
-            </ul>
-        </div>
-        <div class="logout">
-            <a href="<?= BASE_URL ?>/logout.php">
-                <i class="fas fa-sign-out-alt"></i> Logout
-            </a>
-        </div>
+<div class="sidebar">
+    <div class="logo">
+        <div class="logo-icon">F</div>
+        <span>Finote</span>
     </div>
-
-    <div class="main-content">
-        <div class="section-card">
-            <h2>Edit Profile</h2>
-            <?php if (isset($_SESSION['success_message_profile'])): ?>
-                <div class="alert alert-success mt-3" role="alert">
-                    <?php echo $_SESSION['success_message_profile']; unset($_SESSION['success_message_profile']); ?>
-                </div>
-            <?php endif; ?>
-            <?php if (isset($_SESSION['error_message_profile'])): ?>
-                <div class="alert alert-danger mt-3" role="alert">
-                    <?php echo $_SESSION['error_message_profile']; unset($_SESSION['error_message_profile']); ?>
-                </div>
-            <?php endif; ?>
-
-            <form action="<?= BASE_URL ?>/user/update_profile.php" method="POST" enctype="multipart/form-data">
-                <label for="first_name">Username</label> <input type="text" id="first_name" name="username" value="<?= htmlspecialchars($username) ?>" required />
-                <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" value="<?= htmlspecialchars($email) ?>" required />
-
-                <label for="phone">Phone Number</label>
-                <input type="tel" id="phone" name="phone" value="<?= htmlspecialchars($phone) ?>" required />
-
-                <label for="photo">Profile Photo (optional)</label>
-                <input type="file" id="photo" name="photo" accept="image/*" />
-                <small class="form-text text-muted">Biarkan kosong jika tidak ingin mengubah foto.</small>
-
-                <button type="submit" class="btn-submit">Save Changes</button>
-            </form>
+    <div class="profile">
+        <div class="avatar">
+            <img src="<?= $photo ?>" alt="Profile">
         </div>
+        <span class="welcome">Welcome back</span>
+        <span class="name"><?= htmlspecialchars($username) ?></span>
     </div>
+    <ul class="menu">
+        <li class="menu-item"><a href="<?= BASE_URL ?>/user/dashboard.php"><span class="menu-icon"><i class="fas fa-tachometer-alt"></i></span>Dashboard</a></li>
+        <li class="menu-item"><a href="<?= BASE_URL ?>/user/riwayat.php"><span class="menu-icon"><i class="fas fa-exchange-alt"></i></span>Riwayat</a></li>
+        <li class="menu-item"><a href="<?= BASE_URL ?>/user/categories.php"><span class="menu-icon"><i class="fas fa-tags"></i></span>Kategori</a></li>
+        <li class="menu-item active"><a href="<?= BASE_URL ?>/user/profile.php"><span class="menu-icon"><i class="fas fa-cog"></i></span>Profile</a></li>
+        <li class="menu-item"><a href="<?= BASE_URL ?>/logout.php"><span class="menu-icon"><i class="fas fa-sign-out-alt"></i></span>Log Out</a></li>
+    </ul>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<div class="main-content">
+    <div class="section-card">
+        <h2 class="text-center mb-4">Edit Profile</h2>
+        <?php if (isset($_SESSION['success_message_profile'])): ?>
+            <div class="alert alert-success"> <?= $_SESSION['success_message_profile']; unset($_SESSION['success_message_profile']); ?> </div>
+        <?php endif; ?>
+        <?php if (isset($_SESSION['error_message_profile'])): ?>
+            <div class="alert alert-danger"> <?= $_SESSION['error_message_profile']; unset($_SESSION['error_message_profile']); ?> </div>
+        <?php endif; ?>
+
+        <form action="<?= BASE_URL ?>/user/update_profile.php" method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <input type="text" class="form-control" id="username" name="username" value="<?= htmlspecialchars($username) ?>" required>
+            </div>
+            <div class="mb-3">
+                <label for="email" class="form-label">Email</label>
+                <input type="email" class="form-control" id="email" name="email" value="<?= htmlspecialchars($email) ?>" required>
+            </div>
+            <div class="mb-3">
+                <label for="phone" class="form-label">Phone</label>
+                <input type="tel" class="form-control" id="phone" name="phone" value="<?= htmlspecialchars($phone) ?>" required>
+            </div>
+            <div class="mb-3">
+                <label for="photo" class="form-label">Profile Photo (optional)</label>
+                <input type="file" class="form-control" id="photo" name="photo" accept="image/*">
+            </div>
+            <button type="submit" class="btn-submit">Save Changes</button>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
