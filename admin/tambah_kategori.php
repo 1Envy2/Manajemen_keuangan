@@ -217,15 +217,40 @@ $conn->close();
         <div class="alert alert-danger"><?= $error_msg ?></div>
     <?php endif; ?>
 
-    <div class="card">
-        <form action="<?= htmlspecialchars($_SERVER['PHP_SELF']) ?>" method="POST">
+    <div class="card" style="border-radius: 12px; overflow: hidden;">
+    <div class="card-header" style="background-color: #ffffff; padding: 20px 25px; border-bottom: 1px solid #dee2e6;">
+        <div class="card-title" style="font-size: 1.25rem; font-weight: 600; color: var(--color-dark-blue); margin: 0;">
+            Form Tambah Kategori
+        </div>
+    </div>
+    <div class="card-content" style="background-color: #f8f5ef; padding: 25px;">
+        <?php if (!empty($success_msg)): ?>
+            <div class="alert alert-success" role="alert"><?= $success_msg ?></div>
+        <?php endif; ?>
+        <?php if (!empty($error_msg)): ?>
+            <div class="alert alert-danger" role="alert"><?= $error_msg ?></div>
+        <?php endif; ?>
+
+        <form action="<?= htmlspecialchars($_SERVER['PHP_SELF']) ?>" method="post">
             <div class="mb-3">
                 <label for="category_name" class="form-label">Nama Kategori</label>
-                <input type="text" name="category_name" id="category_name" class="form-control <?= !empty($name_err) ? 'is-invalid' : '' ?>" value="<?= htmlspecialchars($category_name) ?>">
-                <?php if (!empty($name_err)): ?><div class="invalid-feedback"><?= $name_err ?></div><?php endif; ?>
+                <input type="text" name="category_name" id="category_name"
+                    class="form-control <?= (!empty($name_err)) ? 'is-invalid' : ''; ?>"
+                    value="<?= htmlspecialchars($category_name); ?>">
+                <?php if (!empty($name_err)): ?>
+                    <div class="invalid-feedback"><?= $name_err ?></div>
+                <?php endif; ?>
             </div>
-            <button type="submit" class="btn btn-primary" style="background-color: var(--color-dark-blue); border-color: var(--color-dark-blue);">Tambah</button>
-            <a href="<?= BASE_URL ?>/admin/dashboard.php" class="btn btn-secondary">Kembali</a>
+            <div class="d-flex justify-content-between">
+                <button type="submit" class="btn btn-primary px-4"
+                    style="background-color: #007bff; border-color: #007bff;">
+                    Tambah Kategori
+                </button>
+                <a href="<?= BASE_URL ?>/admin/dashboard.php" class="btn btn-secondary px-4"
+                    style="background-color: #6c757d; border-color: #6c757d;">
+                    Kembali ke Dashboard Admin
+                </a>
+            </div>
         </form>
     </div>
 </div>
