@@ -1,21 +1,12 @@
 <?php
-// user/dashboard.php
-
-// Panggil config.php terlebih dahulu, karena di dalamnya ada definisi BASE_URL dan koneksi $conn
 require_once '../config.php';
-// Panggil auth.php untuk fungsi-fungsi autentikasi dan otorisasi
 require_once '../includes/auth.php';
 
-// Cek akses: Pastikan user sudah login dan role-nya adalah 'user'
-// Fungsi ini akan mengalihkan (redirect) jika user tidak memenuhi syarat
 check_user_access();
 
-// Ambil data user dari session (sudah disediakan oleh auth.php)
 $user_id = get_user_id();
-// Ambil username dari session (sudah disediakan oleh auth.php, atau dari DB jika diperlukan lebih banyak data)
-$username = $_SESSION['username'] ?? 'User'; // Gunakan username dari session
+$username = $_SESSION['username'] ?? 'User';
 
-// Ambil data user lengkap dari database jika dibutuhkan (misalnya untuk foto)
 $user_data_from_db = [];
 $query_user_data = "SELECT photo FROM users WHERE id = ?";
 if ($stmt_user_data = $conn->prepare($query_user_data)) {
@@ -27,23 +18,19 @@ if ($stmt_user_data = $conn->prepare($query_user_data)) {
     $stmt_user_data->close();
 }
 
-// Tentukan path foto profil
-// Asumsi 'uploads/' ada di root proyek
 $photo = (!empty($user_data_from_db['photo']) && file_exists('uploads/' . $user_data_from_db['photo']))
          ? BASE_URL . '/uploads/' . $user_data_from_db['photo']
-         : BASE_URL . '/assets/profile.jpeg'; // Asumsi 'assets/profile.jpeg' ada di folder 'public/assets/'
+         : BASE_URL . '/assets/profile.jpeg';
 
 
-// --- Menampilkan ringkasan keuangan bulanan (untuk bulan berjalan) ---
-$current_month = date('Y-m'); // Format YYYY-MM untuk bulan saat ini
+$current_month = date('Y-m');
 $first_day_of_month = date('Y-m-01');
-$last_day_of_month = date('Y-m-t'); // t = jumlah hari dalam bulan ini
+$last_day_of_month = date('Y-m-t'); 
 
 $total_income_month = 0;
 $total_expense_month = 0;
 $balance_month = 0;
 
-// Query untuk mengambil total pemasukan bulan ini
 $sql_income_month = "SELECT SUM(amount) AS total FROM transactions WHERE user_id = ? AND type = 'income' AND transaction_date BETWEEN ? AND ?";
 if ($stmt_income_month = $conn->prepare($sql_income_month)) {
     $stmt_income_month->bind_param('iss', $user_id, $first_day_of_month, $last_day_of_month);
@@ -55,7 +42,6 @@ if ($stmt_income_month = $conn->prepare($sql_income_month)) {
     $stmt_income_month->close();
 }
 
-// Query untuk mengambil total pengeluaran bulan ini
 $sql_expense_month = "SELECT SUM(amount) AS total FROM transactions WHERE user_id = ? AND type = 'expense' AND transaction_date BETWEEN ? AND ?";
 if ($stmt_expense_month = $conn->prepare($sql_expense_month)) {
     $stmt_expense_month->bind_param('iss', $user_id, $first_day_of_month, $last_day_of_month);
@@ -69,8 +55,6 @@ if ($stmt_expense_month = $conn->prepare($sql_expense_month)) {
 
 $balance_month = $total_income_month - $total_expense_month;
 
-
-// --- Mengambil Total Saldo Keseluruhan ---
 $total_income_overall = 0;
 $total_expense_overall = 0;
 
@@ -98,14 +82,12 @@ if ($stmt_expense_overall = $conn->prepare($sql_expense_overall)) {
 
 $balance_overall = $total_income_overall - $total_expense_overall;
 
-
-// --- Mengambil Transaksi Terakhir (misal 5 transaksi) ---
 $latest_transactions = [];
 $sql_latest_transactions = "SELECT t.amount, t.description, t.transaction_date, t.type, c.name AS category_name
                              FROM transactions t
                              JOIN categories c ON t.category_id = c.id
                              WHERE t.user_id = ?
-                             ORDER BY t.created_at DESC LIMIT 5"; // Urutkan berdasarkan waktu dibuat
+                             ORDER BY t.created_at DESC LIMIT 5";
 if ($stmt_latest = $conn->prepare($sql_latest_transactions)) {
     $stmt_latest->bind_param('i', $user_id);
     if ($stmt_latest->execute()) {
@@ -117,8 +99,7 @@ if ($stmt_latest = $conn->prepare($sql_latest_transactions)) {
     $stmt_latest->close();
 }
 
-
-$conn->close(); // Tutup koneksi setelah semua query selesai
+$conn->close(); 
 ?>
 
 <!DOCTYPE html>
@@ -129,7 +110,7 @@ $conn->close(); // Tutup koneksi setelah semua query selesai
     <title>Finote - Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --color-dark-blue: #254E7A;
@@ -141,18 +122,18 @@ $conn->close(); // Tutup koneksi setelah semua query selesai
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--color-baby-blue); /* Baby blue sebagai latar belakang */
+            background-color: var(--color-baby-blue); 
             display: flex;
             min-height: 100vh;
         }
 
         .sidebar {
-            width: 280px; /* Lebar sidebar sedikit lebih besar */
-            background-color: var(--color-dark-blue); /* Biru tua gelap untuk sidebar */
+            width: 280px; 
+            background-color: var(--color-dark-blue); 
             color: var(--color-off-white);
             padding: 20px;
             box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-            flex-shrink: 0; /* Agar sidebar tidak menyusut */
+            flex-shrink: 0; 
         }
 
         .logo {
@@ -187,10 +168,10 @@ $conn->close(); // Tutup koneksi setelah semua query selesai
         }
 
         .avatar {
-            width: 80px; /* Ukuran avatar sedikit lebih besar */
+            width: 80px;
             height: 80px;
             border-radius: 50%;
-            background-color: var(--color-medium-blue); /* Warna default avatar */
+            background-color: var(--color-medium-blue); 
             margin-bottom: 10px;
             overflow: hidden;
             border: 3px solid var(--color-off-white);
@@ -222,41 +203,41 @@ $conn->close(); // Tutup koneksi setelah semua query selesai
         .menu-item {
             display: flex;
             align-items: center;
-            padding: 12px 15px; /* Padding lebih besar */
+            padding: 12px 15px;
             border-radius: 5px;
-            margin-bottom: 8px; /* Jarak antar item */
+            margin-bottom: 8px; 
             cursor: pointer;
             transition: background-color 0.3s, color 0.3s;
         }
 
         .menu-item:hover {
-            background-color: var(--color-medium-blue); /* Biru sedang saat hover */
+            background-color: var(--color-medium-blue); 
             color: var(--color-off-white);
         }
 
         .menu-item.active {
-            background-color: var(--color-medium-blue); /* Biru sedang untuk aktif */
+            background-color: var(--color-medium-blue); 
             color: var(--color-off-white);
             font-weight: 600;
         }
 
         .menu-item a {
-            color: inherit; /* Warisi warna dari parent */
+            color: inherit; 
             text-decoration: none;
-            display: flex; /* Agar ikon dan teks sejajar */
+            display: flex;
             align-items: center;
-            width: 100%; /* Agar area klik lebih luas */
+            width: 100%; 
         }
 
         .menu-icon {
-            margin-right: 15px; /* Jarak ikon lebih besar */
+            margin-right: 15px; 
             width: 20px;
             text-align: center;
             font-size: 1.1em;
         }
 
-        .badge-custom { /* Custom badge untuk sidebar */
-            background-color: var(--color-light-blue); /* Warna badge sesuai palet */
+        .badge-custom { 
+            background-color: var(--color-light-blue); 
             color: var(--color-dark-blue);
             font-size: 0.7em;
             padding: 3px 8px;
@@ -655,12 +636,49 @@ $conn->close(); // Tutup koneksi setelah semua query selesai
                             <div class="stat-value">Rp <?php echo number_format($balance_month, 2, ',', '.'); ?></div>
                             <div class="stat-chart"></div>
                         </div>
-                        
-                        <div class="stat-card white">
-                            <div class="donut-chart">
-                                <div class="donut-hole"><?php echo number_format($balance_overall > 0 ? ($balance_overall / ($total_income_overall + $total_expense_overall) * 100) : 0, 0); ?>%</div> </div>
-                            <div class="chart-label">Rp <?php echo number_format($balance_overall, 2, ',', '.'); ?></div>
-                            <div class="chart-sublabel">Total Saldo Keseluruhan</div>
+
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">Pengeluaran Bulanan</div> </div>
+                        <div class="card-content" style="display: flex; align-items: center; justify-content: space-around; padding: 20px;">
+                            <div style="position: relative; width: 180px; height: 180px; margin-right: 20px;">
+                                <canvas id="monthlyBalanceChart"></canvas>
+                                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                                    <div style="font-size: 0.9rem; color: #888;">Total</div>
+                                    <div style="font-weight: bold; font-size: 1.2rem; color: var(--color-dark-blue);">
+                                        Rp <?php echo number_format($balance_month / 1000000, 0, ',', '.'); ?> Mio
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="mb-3">
+                                    <div style="font-size: 0.9rem; color: #555;">Pemasukan</div>
+                                    <div style="font-weight: bold; font-size: 1.1rem; color: var(--color-dark-blue);">
+                                        <?php
+                                            $total_all_transactions = $total_income_month + $total_expense_month; // Total keseluruhan untuk persentase
+                                            $income_percentage = ($total_all_transactions > 0) ? ($total_income_month / $total_all_transactions) * 100 : 0;
+                                            echo number_format($income_percentage, 0) . '%';
+                                        ?>
+                                    </div>
+                                    <div class="progress" style="height: 5px; background-color: var(--color-baby-blue);">
+                                        <div class="progress-bar" role="progressbar" style="width: <?php echo number_format($income_percentage, 0); ?>%; background-color: var(--color-medium-blue);" aria-valuenow="<?php echo number_format($income_percentage, 0); ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.9rem; color: #555;">Pengeluaran</div>
+                                    <div style="font-weight: bold; font-size: 1.1rem; color: var(--color-dark-blue);">
+                                        <?php
+                                            $expense_percentage = ($total_all_transactions > 0) ? ($total_expense_month / $total_all_transactions) * 100 : 0;
+                                            echo number_format($expense_percentage, 0) . '%';
+                                        ?>
+                                    </div>
+                                    <div class="progress" style="height: 5px; background-color: var(--color-baby-blue);">
+                                        <div class="progress-bar" role="progressbar" style="width: <?php echo number_format($expense_percentage, 0); ?>%; background-color: var(--color-dark-blue);" aria-valuenow="<?php echo number_format($expense_percentage, 0); ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -722,6 +740,68 @@ $conn->close(); // Tutup koneksi setelah semua query selesai
         </div>
     </div>
     
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" ...></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctxBalance = document.getElementById('monthlyBalanceChart');
+
+        const totalIncomeMonth = <?php echo json_encode($total_income_month); ?>;
+        const totalExpenseMonth = <?php echo json_encode($total_expense_month); ?>;
+        const balanceMonth = <?php echo json_encode($balance_month); ?>;
+
+        const balanceChartData = {
+            labels: ['Pemasukan', 'Pengeluaran'],
+            datasets: [{
+                label: 'Ringkasan Bulan Ini',
+                data: [totalIncomeMonth, totalExpenseMonth], 
+                backgroundColor: [
+                    '#5584B0',
+                    '#254E7A'  
+                ],
+                borderColor: '#F7F3EA',
+                borderWidth: 8,
+                hoverOffset: 0 
+            }]
+        };
+
+        if (totalIncomeMonth === 0 && totalExpenseMonth === 0) {
+            const context = ctxBalance.getContext('2d');
+            context.font = '16px Arial';
+            context.textAlign = 'center';
+            context.fillText('Belum ada data saldo bulan ini.', ctxBalance.width / 2, ctxBalance.height / 2);
+        } else {
+            new Chart(ctxBalance, {
+                type: 'doughnut',
+                data: balanceChartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%', 
+                    plugins: {
+                        legend: {
+                            display: false 
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(context.parsed);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove', 'touchend'],
+                }
+            });
+        }
+    });
+    </script>
 </body>
 </html>
