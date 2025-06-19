@@ -29,7 +29,7 @@ if ($stmt_user_data = $conn->prepare($query_user_data)) {
 // Tentukan path foto profil
 // Asumsi 'uploads/' ada di root proyek, dan 'assets/profile.jpeg' ada di public/assets/
 $photo = (!empty($user_data_from_db['photo']) && file_exists('uploads/' . $user_data_from_db['photo']))
-         ? BASE_URL . '/uploads/' . $user_data_from_db['photo']
+         ? BASE_URL . 'user/uploads/' . $user_data_from_db['photo']
          : BASE_URL . '/assets/profile.jpeg';
 
 
