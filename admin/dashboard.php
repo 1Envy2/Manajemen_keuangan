@@ -154,8 +154,25 @@ $conn->close();
         .card {
             background-color: var(--color-off-white);
             border-radius: 10px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 18px 25px;
+            border-bottom: 1px solid var(--color-baby-blue);
+            background-color: #fcfcfc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--color-dark-blue);
+        }
+        .card-content {
             padding: 25px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
     </style>
 </head>
@@ -186,6 +203,7 @@ $conn->close();
         </li>
     </ul>
 </div>
+
 <div class="main-content">
     <h2>Dashboard Admin</h2>
     <?php if (!empty($success_message)): ?><div class="alert alert-success"><?= $success_message ?></div><?php endif; ?>
@@ -214,8 +232,7 @@ $conn->close();
                                 <td><?= $user['role'] ?></td>
                                 <td><?= date('d M Y', strtotime($user['created_at'])) ?></td>
                                 <td>
-                                    <a href="users/edit.php?id=<?= $user['id'] ?>" class="btn btn-sm btn-primary btn-action"><i class="fas fa-edit"></i></a>
-                                    <a href="users/delete.php?id=<?= $user['id'] ?>" class="btn btn-sm btn-danger btn-action" onclick="return confirm('Yakin hapus pengguna ini?')"><i class="fas fa-trash"></i></a>
+                                    <a href="users/delete.php?id=<?= $user['id'] ?>" class="btn btn-sm btn-danger btn-action" onclick="return confirm('Yakin hapus pengguna ini?')"><i class="fas fa-trash-alt"></i></a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
