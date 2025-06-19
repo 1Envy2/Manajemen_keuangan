@@ -1,16 +1,9 @@
 <?php
-// user/add_transaction.php
-
-// Panggil config.php terlebih dahulu, karena di dalamnya ada definisi BASE_URL dan koneksi $conn
 require_once '../config.php';
-// Panggil auth.php untuk fungsi-fungsi autentikasi dan otorisasi
 require_once '../includes/auth.php';
 
-// Cek akses: Pastikan user sudah login dan role-nya adalah 'user'
-// Fungsi ini akan mengalihkan (redirect) jika user tidak memenuhi syarat
 check_user_access();
 
-// Ambil user_id dari session (disediakan oleh auth.php)
 $user_id = get_user_id();
 
 // Tentukan tipe transaksi dari parameter GET, default ke 'income'
@@ -34,9 +27,6 @@ if (isset($_SESSION['error_message'])) {
     unset($_SESSION['error_message']);
 }
 
-
-// --- Ambil semua kategori dari database (semuanya global sekarang) ---
-// Kita akan filter berdasarkan tipe (income/expense) untuk tampilan di dropdown
 $categories_from_db = [];
 // PERBAIKAN QUERY: Hapus user_id dari WHERE karena kategori global, tambahkan type
 $sql_categories = "SELECT id, name, type FROM categories ORDER BY type ASC, name ASC";
@@ -87,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     } else {
         $category_id = trim($_POST['category_id']);
         // PERBAIKAN VALIDASI KATEGORI: Cek id dan type kategori dari tabel global
-        $sql_check_cat = "SELECT id FROM categories WHERE id = ? AND type = ?"; // Asumsi tabel categories punya kolom 'type'
+        $sql_check_cat = "SELECT id FROM categories WHERE id = ? AND type = ?"; 
         if ($stmt_check = $conn->prepare($sql_check_cat)) {
             $stmt_check->bind_param('is', $category_id, $type);
             $stmt_check->execute();
@@ -139,8 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $error_message = "Gagal menyiapkan query insert transaksi: " . $conn->error;
         }
     } else {
-        // Jika ada error validasi, pesan error sudah diset di variabel _err
-        // $error_message = "Terjadi kesalahan validasi. Mohon periksa kembali input Anda."; // Ini bisa dihilangkan karena sudah ada per field
+        
     }
 }
 
@@ -378,15 +367,12 @@ $conn->close();
                     }
                 });
                 
-                // Pastikan kategori yang terpilih valid untuk tipe yang aktif
-                // Jika kategori yang terpilih saat ini tersembunyi, reset pilihan
                 if (categorySelect.selectedOptions.length > 0) {
                     if (categorySelect.selectedOptions[0].style.display === 'none') {
                         categorySelect.value = ""; // Reset jika opsi aktif tersembunyi
                     }
                 } else if (categorySelect.value !== "") {
-                     // Jika tidak ada yang dipilih di UI, tapi ada nilai di PHP
-                     // Ini kasus saat ada error validasi dan category_id tidak kosong
+                    
                      let foundSelected = false;
                      categoryOptions.forEach(option => {
                         if (option.value === "<?php echo htmlspecialchars($category_id); ?>" && option.style.display !== 'none') {
@@ -403,8 +389,6 @@ $conn->close();
                 
             }
 
-            // Inisialisasi tampilan kategori saat halaman pertama kali dimuat
-            // Ini akan memastikan kategori yang relevan ditampilkan berdasarkan parameter URL ?type=...
             toggleCategoryOptions(hiddenTypeInput.value);
 
             formButtons.forEach(button => {
