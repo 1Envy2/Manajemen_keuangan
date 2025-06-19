@@ -19,7 +19,7 @@ if ($stmt_user_data = $conn->prepare($query_user_data)) {
 }
 
 $photo = (!empty($user_data_from_db['photo']) && file_exists('uploads/' . $user_data_from_db['photo']))
-         ? BASE_URL . '/uploads/' . $user_data_from_db['photo']
+         ? BASE_URL . 'user/uploads/' . $user_data_from_db['photo']
          : BASE_URL . '/assets/profile.jpeg';
 
 
@@ -648,7 +648,7 @@ $conn->close();
                                 <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
                                     <div style="font-size: 0.9rem; color: #888;">Total</div>
                                     <div style="font-weight: bold; font-size: 1.2rem; color: var(--color-dark-blue);">
-                                        Rp <?php echo number_format($balance_month / 1000000, 0, ',', '.'); ?> Mio
+                                        Rp <?php echo number_format($balance_month / 1000000, 0, ',', '.'); ?> Juta
                                     </div>
                                 </div>
                             </div>
