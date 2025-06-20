@@ -24,18 +24,22 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 // Inisialisasi form
 $category_name = '';
+$category_type = ''; // Baru: Inisialisasi tipe kategori
 $name_err = '';
+$type_err = ''; // Baru: Error untuk tipe
 $success_msg = '';
 $error_msg = '';
 
-// Handle form
+// Tangani form
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // Validasi nama kategori
     if (empty(trim($_POST['category_name']))) {
         $name_err = 'Nama kategori tidak boleh kosong.';
     } else {
         $category_name = trim($_POST['category_name']);
 
-        // Cek duplikat
+        // Cek duplikat (pertimbangkan tipe dalam pengecekan duplikat jika Anda ingin 'Gaji' sebagai pemasukan dan 'Gaji' sebagai pengeluaran menjadi berbeda)
+        // Untuk saat ini, kita akan menjaga tetap sederhana dan hanya memeriksa nama terlepas dari tipenya
         $sql = "SELECT id FROM categories WHERE name = ?";
         if ($stmt = $conn->prepare($sql)) {
             $stmt->bind_param("s", $category_name);
@@ -48,13 +52,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 
-    if (empty($name_err)) {
-        $sql = "INSERT INTO categories (name) VALUES (?)";
+    // Baru: Validasi tipe kategori
+    if (empty(trim($_POST['category_type']))) {
+        $type_err = 'Tipe kategori tidak boleh kosong.';
+    } else {
+        $category_type = trim($_POST['category_type']);
+        if (!in_array($category_type, ['income', 'expense'])) {
+            $type_err = 'Tipe kategori tidak valid.';
+        }
+    }
+
+    // Hanya lanjutkan jika tidak ada error
+    if (empty($name_err) && empty($type_err)) {
+        // Baru: Sertakan 'type' dalam pernyataan INSERT
+        $sql = "INSERT INTO categories (name, type) VALUES (?, ?)";
         if ($stmt = $conn->prepare($sql)) {
-            $stmt->bind_param("s", $category_name);
+            $stmt->bind_param("ss", $category_name, $category_type); // 'ss' untuk dua parameter string
             if ($stmt->execute()) {
                 $success_msg = "Kategori berhasil ditambahkan!";
+                // Kosongkan bidang form setelah pengiriman berhasil
                 $category_name = '';
+                $category_type = '';
             } else {
                 $error_msg = "Gagal menambahkan kategori. Silakan coba lagi.";
             }
@@ -239,6 +257,18 @@ $conn->close();
                     value="<?= htmlspecialchars($category_name); ?>">
                 <?php if (!empty($name_err)): ?>
                     <div class="invalid-feedback"><?= $name_err ?></div>
+                <?php endif; ?>
+            </div>
+            <div class="mb-3">
+                <label for="category_type" class="form-label">Tipe Kategori</label>
+                <select name="category_type" id="category_type"
+                    class="form-select <?= (!empty($type_err)) ? 'is-invalid' : ''; ?>">
+                    <option value="">Pilih Tipe</option>
+                    <option value="income" <?= ($category_type == 'income') ? 'selected' : ''; ?>>Pemasukan (Income)</option>
+                    <option value="expense" <?= ($category_type == 'expense') ? 'selected' : ''; ?>>Pengeluaran (Expense)</option>
+                </select>
+                <?php if (!empty($type_err)): ?>
+                    <div class="invalid-feedback"><?= $type_err ?></div>
                 <?php endif; ?>
             </div>
             <div class="d-flex justify-content-between">

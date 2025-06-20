@@ -3,7 +3,7 @@ require_once '../config.php';
 require_once '../includes/auth.php';
 
 check_admin_access();
-$id = get_user_id();
+$id_user_admin = get_user_id(); // Menggunakan nama variabel yang lebih spesifik agar tidak bentrok
 
 $username = '';
 $email = '';
@@ -11,40 +11,45 @@ $phone = '';
 $photo_db = '';
 $created_at = '';
 
-$query = "SELECT username, email, phone, photo, created_at FROM users WHERE id = ? AND role = 'admin'";
-$stmt = $conn->prepare($query);
-$stmt->bind_param("i", $id);
-$stmt->execute();
-$result = $stmt->get_result();
-if ($result->num_rows === 1) {
-    $data = $result->fetch_assoc();
-    $username = $data['username'];
-    $email = $data['email'];
-    $phone = $data['phone'] ?? '';
-    $photo_db = $data['photo'] ?? '';
-    $created_at = $data['created_at'];
+// Ambil data admin yang sedang login untuk sidebar
+$query_admin = "SELECT username, email, phone, photo, created_at FROM users WHERE id = ? AND role = 'admin'";
+$stmt_admin = $conn->prepare($query_admin);
+$stmt_admin->bind_param("i", $id_user_admin);
+$stmt_admin->execute();
+$result_admin = $stmt_admin->get_result();
+if ($result_admin->num_rows === 1) {
+    $data_admin = $result_admin->fetch_assoc();
+    $username = $data_admin['username'];
+    $email = $data_admin['email'];
+    $phone = $data_admin['phone'] ?? '';
+    $photo_db_admin = $data_admin['photo'] ?? ''; // Nama variabel berbeda untuk foto admin
+    $created_at = $data_admin['created_at'];
 }
-$stmt->close();
+$stmt_admin->close();
 
-$photo_url = (!empty($photo_db) && file_exists('../uploads/' . $photo_db))
-    ? BASE_URL . '/uploads/' . $photo_db
+$photo_url = (!empty($photo_db_admin) && file_exists('../uploads/' . $photo_db_admin))
+    ? BASE_URL . '/uploads/' . $photo_db_admin
     : BASE_URL . '/assets/admin_profile.jpeg';
 
 $current_page = basename($_SERVER['PHP_SELF']);
 
 $category_id = $_GET['id'] ?? null;
 $category_name = '';
+$category_type = ''; // BARU: Inisialisasi variabel untuk tipe kategori
 $name_err = '';
+$type_err = ''; // BARU: Inisialisasi error untuk tipe
 $success_msg = '';
 $error_msg = '';
 
+// Validasi ID kategori dari URL
 if ($category_id === null || !is_numeric($category_id)) {
     $_SESSION['error_message'] = "ID kategori tidak valid.";
     header('location: ' . BASE_URL . '/admin/dashboard.php');
     exit;
 }
 
-$sql_get = "SELECT name FROM categories WHERE id = ?";
+// Ambil data kategori yang akan diedit dari database
+$sql_get = "SELECT name, type FROM categories WHERE id = ?"; // BARU: Ambil kolom 'type'
 if ($stmt_get = $conn->prepare($sql_get)) {
     $stmt_get->bind_param("i", $category_id);
     if ($stmt_get->execute()) {
@@ -52,6 +57,7 @@ if ($stmt_get = $conn->prepare($sql_get)) {
         if ($result_get->num_rows == 1) {
             $category_data = $result_get->fetch_assoc();
             $category_name = $category_data['name'];
+            $category_type = $category_data['type']; // BARU: Set tipe kategori
         } else {
             $_SESSION['error_message'] = "Kategori tidak ditemukan.";
             header('location: ' . BASE_URL . '/admin/dashboard.php');
@@ -63,11 +69,14 @@ if ($stmt_get = $conn->prepare($sql_get)) {
     $stmt_get->close();
 }
 
+// Tangani pengiriman form (saat ada POST request)
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // Validasi nama kategori
     if (empty(trim($_POST['category_name']))) {
         $name_err = 'Nama kategori tidak boleh kosong.';
     } else {
         $new_category_name = trim($_POST['category_name']);
+        // Cek duplikat nama kategori, kecuali kategori yang sedang diedit
         $sql_check = "SELECT id FROM categories WHERE name = ? AND id != ?";
         if ($stmt_check = $conn->prepare($sql_check)) {
             $stmt_check->bind_param("si", $new_category_name, $category_id);
@@ -83,13 +92,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 
-    if (empty($name_err) && empty($error_msg)) {
-        $sql_update = "UPDATE categories SET name = ? WHERE id = ?";
+    // BARU: Validasi tipe kategori
+    if (empty(trim($_POST['category_type']))) {
+        $type_err = 'Tipe kategori tidak boleh kosong.';
+    } else {
+        $new_category_type = trim($_POST['category_type']);
+        if (!in_array($new_category_type, ['income', 'expense'])) {
+            $type_err = 'Tipe kategori tidak valid.';
+        }
+    }
+
+
+    // Lanjutkan jika tidak ada error pada nama dan tipe
+    if (empty($name_err) && empty($type_err) && empty($error_msg)) {
+        // BARU: Perbarui juga kolom 'type'
+        $sql_update = "UPDATE categories SET name = ?, type = ? WHERE id = ?";
         if ($stmt_update = $conn->prepare($sql_update)) {
-            $stmt_update->bind_param("si", $new_category_name, $category_id);
+            $stmt_update->bind_param("ssi", $new_category_name, $new_category_type, $category_id); // 'ssi' untuk dua string dan satu integer
             if ($stmt_update->execute()) {
                 $success_msg = 'Kategori berhasil diperbarui!';
                 $category_name = $new_category_name;
+                $category_type = $new_category_type; // BARU: Perbarui nilai tipe setelah berhasil
             } else {
                 $error_msg = "Gagal memperbarui kategori.";
             }
@@ -294,9 +317,19 @@ $conn->close();
                                value="<?= htmlspecialchars($category_name); ?>">
                         <div class="invalid-feedback"><?= $name_err ?></div>
                     </div>
+                    <div class="mb-3">
+                        <label for="category_type" class="form-label">Tipe Kategori</label>
+                        <select name="category_type" id="category_type"
+                            class="form-select <?= (!empty($type_err)) ? 'is-invalid' : ''; ?>">
+                            <option value="">Pilih Tipe</option>
+                            <option value="income" <?= ($category_type == 'income') ? 'selected' : ''; ?>>Pemasukan (Income)</option>
+                            <option value="expense" <?= ($category_type == 'expense') ? 'selected' : ''; ?>>Pengeluaran (Expense)</option>
+                        </select>
+                        <div class="invalid-feedback"><?= $type_err ?></div>
+                    </div>
                     <div class="d-flex justify-content-between">
                         <button type="submit" class="btn btn-primary">Perbarui Kategori</button>
-                        <a href="dashboard.php" class="btn btn-secondary">Kembali ke Dashboard Admin</a>
+                        <a href="tambah_kategori.php" class="btn btn-secondary">Kembali ke Manajemen Kategori</a>
                     </div>
                 </form>
             </div>
