@@ -232,7 +232,7 @@ $conn->close();
                                 <td><?= $user['role'] ?></td>
                                 <td><?= date('d M Y', strtotime($user['created_at'])) ?></td>
                                 <td>
-                                    <a href="users/delete.php?id=<?= $user['id'] ?>" class="btn btn-sm btn-danger btn-action" onclick="return confirm('Yakin hapus pengguna ini?')"><i class="fas fa-trash-alt"></i></a>
+                                    <a href="hapus_pengguna.php?id=<?= $user['id'] ?>" class="btn btn-sm btn-danger btn-action" onclick="return confirm('Yakin hapus pengguna ini?')"><i class="fas fa-trash-alt"></i></a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
