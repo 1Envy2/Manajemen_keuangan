@@ -8,7 +8,7 @@ check_user_access(); // Pastikan hanya user yang bisa mengakses halaman ini
 $user_id = get_user_id();
 
 // Ambil data profil pengguna untuk sidebar
-$user_username_sidebar = $_SESSION['username'] ?? 'User'; // Gunakan nama variabel yang lebih jelas
+$username = $_SESSION['username'] ?? 'User';
 $user_photo_sidebar = 'user_profile.jpeg'; // Default foto
 
 $sql_user_photo = "SELECT photo FROM users WHERE id = ?";
@@ -18,16 +18,11 @@ $stmt_user_photo->execute();
 $result_user_photo = $stmt_user_photo->get_result();
 if ($row_user_photo = $result_user_photo->fetch_assoc()) {
     $photo_db_name = $row_user_photo['photo'] ?? '';
-    // Perbaikan path: file_exists perlu path relatif dari script yang dijalankan
-    // BASE_URL sudah mengatur path web, jadi untuk file_exists gunakan path sistem file
-    $user_photo_sidebar = (!empty($photo_db_name) && file_exists(__DIR__ . '/../uploads/' . $photo_db_name))
-                            ? $photo_db_name : 'user_profile.jpeg';
+    $photo_path = __DIR__ . '/uploads/' . $photo_db_name; // path relatif dari file PHP ini
+    $photo_url = (!empty($photo_db_name) && file_exists($photo_path))
+        ? BASE_URL . '/user/uploads/' . $photo_db_name
+        : BASE_URL . '/assets/profile.jpeg';
 }
-$stmt_user_photo->close();
-
-$photo_url = BASE_URL . 'uploads/' . htmlspecialchars($user_photo_sidebar); // Path foto untuk sidebar (URL)
-
-$current_page = basename($_SERVER['PHP_SELF']);
 
 // Inisialisasi variabel form
 $transaction_id = $_GET['id'] ?? null;
@@ -175,10 +170,10 @@ $conn->close();
             --color-off-white: #F7F3EA;
         }
         body {
-            font-family: 'Segoe UI', sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--color-baby-blue);
-            display: flex;
             min-height: 100vh;
+            display: flex;
         }
         .sidebar {
             width: 280px;
@@ -186,6 +181,14 @@ $conn->close();
             color: var(--color-off-white);
             padding: 20px;
             flex-shrink: 0;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 30px;
+            font-size: 1.5rem;
+            font-weight: bold;
         }
         .logo {
             display: flex;
@@ -204,65 +207,63 @@ $conn->close();
             align-items: center;
             justify-content: center;
             border-radius: 5px;
+            font-weight: bold;
         }
         .profile {
-            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             margin-bottom: 30px;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
             padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         .avatar {
             width: 80px;
             height: 80px;
             border-radius: 50%;
+            background-color: var(--color-medium-blue);
             overflow: hidden;
-            margin: 0 auto 10px;
             border: 3px solid var(--color-off-white);
+            margin-bottom: 10px;
         }
         .avatar img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
-        .welcome {
-            font-size: 0.85rem;
-            color: var(--color-baby-blue);
-        }
-        .name {
-            font-weight: 600;
-            font-size: 1.1rem;
-            color: var(--color-off-white);
-        }
-        .menu {
-            list-style: none;
-            padding: 0;
-        }
+        .welcome { font-size: 0.85rem; color: var(--color-baby-blue); }
+        .name { font-weight: 600; font-size: 1.1rem; color: var(--color-off-white); }
+        .menu { list-style: none; padding: 0; margin: 0; }
         .menu-item {
-            padding: 12px 15px;
-            margin-bottom: 8px;
-            border-radius: 5px;
-            transition: 0.3s;
-        }
-        .menu-item:hover,
-        .menu-item.active {
-            background-color: var(--color-medium-blue);
-        }
-        .menu-item a {
-            text-decoration: none;
-            color: inherit;
             display: flex;
             align-items: center;
+            padding: 12px 15px;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+        .menu-item:hover { background-color: var(--color-medium-blue); }
+        .menu-item.active {
+            background-color: var(--color-medium-blue);
+            font-weight: 600;
+        }
+        .menu-item a {
+            color: inherit;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            width: 100%;
         }
         .menu-icon {
-            margin-right: 10px;
+            margin-right: 15px;
             width: 20px;
             text-align: center;
+            font-size: 1.1em;
         }
         .main-content {
             flex: 1;
-            display: flex;
-            flex-direction: column;
             padding: 30px;
+            background-color: var(--color-baby-blue);
         }
         .card {
             background-color: var(--color-off-white);
@@ -295,34 +296,22 @@ $conn->close();
 
 <div class="sidebar">
     <div class="logo">
-        <div class="logo-icon">F</div> Finote User
+        <div class="logo-icon">F</div>
+        <span>Finote</span>
     </div>
     <div class="profile">
         <div class="avatar">
-            <img src="<?= $photo_url ?>?v=<?= time() ?>" alt="User Foto">
+            <img src="<?= htmlspecialchars($photo_url) ?>" alt="Profile">
         </div>
-        <div class="welcome">Welcome User</div>
-        <div class="name"><?= htmlspecialchars($user_username_sidebar) ?></div>
+        <span class="welcome">Welcome back</span>
+        <span class="name"><?= htmlspecialchars($username) ?></span>
     </div>
     <ul class="menu">
-        <li class="menu-item <?= $current_page == 'dashboard.php' ? 'active' : '' ?>">
-            <a href="<?= BASE_URL ?>/user/dashboard.php"><span class="menu-icon"><i class="fas fa-tachometer-alt"></i></span> Dashboard</a>
-        </li>
-        <li class="menu-item <?= $current_page == 'profile.php' || $current_page == 'edit_profile.php' || $current_page == 'update_profile.php' ? 'active' : '' ?>">
-            <a href="<?= BASE_URL ?>/user/profile.php"><span class="menu-icon"><i class="fas fa-user"></i></span> Profile</a>
-        </li>
-        <li class="menu-item <?= $current_page == 'add_transaction.php' || $current_page == 'edit_transaction.php' ? 'active' : '' ?>">
-            <a href="<?= BASE_URL ?>/user/add_transaction.php"><span class="menu-icon"><i class="fas fa-plus-circle"></i></span> Tambah Transaksi</a>
-        </li>
-        <li class="menu-item <?= $current_page == 'riwayat.php' ? 'active' : '' ?>">
-            <a href="<?= BASE_URL ?>/user/riwayat.php"><span class="menu-icon"><i class="fas fa-history"></i></span> Riwayat Transaksi</a>
-        </li>
-         <li class="menu-item <?= $current_page == 'categories.php' ? 'active' : '' ?>">
-            <a href="<?= BASE_URL ?>/user/categories.php"><span class="menu-icon"><i class="fas fa-tags"></i></span> Kategori</a>
-        </li>
-        <li class="menu-item">
-            <a href="<?= BASE_URL ?>/logout.php"><span class="menu-icon"><i class="fas fa-sign-out-alt"></i></span> Logout</a>
-        </li>
+        <li class="menu-item"><a href="<?= BASE_URL ?>/user/dashboard.php"><span class="menu-icon"><i class="fas fa-tachometer-alt"></i></span>Dashboard</a></li>
+        <li class="menu-item"><a href="<?= BASE_URL ?>/user/riwayat.php"><span class="menu-icon"><i class="fas fa-exchange-alt"></i></span>Riwayat</a></li>
+        <li class="menu-item"><a href="<?= BASE_URL ?>/user/categories.php"><span class="menu-icon"><i class="fas fa-tags"></i></span>Kategori</a></li>
+        <li class="menu-item active"><a href="<?= BASE_URL ?>/user/profile.php"><span class="menu-icon"><i class="fas fa-cog"></i></span>Profile</a></li>
+        <li class="menu-item"><a href="<?= BASE_URL ?>/logout.php"><span class="menu-icon"><i class="fas fa-sign-out-alt"></i></span>Log Out</a></li>
     </ul>
 </div>
 
