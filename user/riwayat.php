@@ -1,13 +1,7 @@
 <?php
-// user/riwayat.php
-
-// Panggil config.php terlebih dahulu, karena di dalamnya ada definisi BASE_URL dan koneksi $conn
 require_once '../config.php';
-// Panggil auth.php untuk fungsi-fungsi autentikasi dan otorisasi
 require_once '../includes/auth.php';
 
-// Cek akses: Pastikan user sudah login dan role-nya adalah 'user'
-// Fungsi ini akan mengalihkan (redirect) jika user tidak memenuhi syarat
 check_user_access();
 
 // Ambil user_id dan username dari session (disediakan oleh auth.php)
@@ -26,12 +20,10 @@ if ($stmt_user_data = $conn->prepare($query_user_data)) {
     $stmt_user_data->close();
 }
 
-// Tentukan path foto profil
-// Perbaikan path: menggunakan __DIR__ untuk path sistem file, dan BASE_URL untuk path web
 $photo_db_name = $user_data_from_db['photo'] ?? '';
-$photo_url = (!empty($photo_db_name) && file_exists(__DIR__ . '/../uploads/' . $photo_db_name))
-             ? BASE_URL . 'uploads/' . $photo_db_name
-             : BASE_URL . '/assets/profile.jpeg';
+$photo_url = (!empty($photo_db_name) && file_exists('uploads/' . $photo_db_name))
+             ? BASE_URL . 'user/uploads/' . $photo_db_name
+             : BASE_URL . '/assets/profile.jpeg'; // Gunakan foto default lokal
 
 
 $filter = $_GET['filter'] ?? 'all';
@@ -401,12 +393,6 @@ $conn->close();
                 <a href="<?= BASE_URL ?>/user/riwayat.php">
                     <span class="menu-icon"><i class="fas fa-exchange-alt"></i></span>
                     <span>Riwayat</span>
-                </a>
-            </li>
-             <li class="menu-item">
-                <a href="<?= BASE_URL ?>/user/add_transaction.php">
-                    <span class="menu-icon"><i class="fas fa-plus-circle"></i></span>
-                    <span>Tambah Transaksi</span>
                 </a>
             </li>
             <li class="menu-item">
