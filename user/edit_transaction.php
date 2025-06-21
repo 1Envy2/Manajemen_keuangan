@@ -308,9 +308,9 @@ $conn->close();
     </div>
     <ul class="menu">
         <li class="menu-item"><a href="<?= BASE_URL ?>/user/dashboard.php"><span class="menu-icon"><i class="fas fa-tachometer-alt"></i></span>Dashboard</a></li>
-        <li class="menu-item"><a href="<?= BASE_URL ?>/user/riwayat.php"><span class="menu-icon"><i class="fas fa-exchange-alt"></i></span>Riwayat</a></li>
+        <li class="menu-item active"><a href="<?= BASE_URL ?>/user/riwayat.php"><span class="menu-icon"><i class="fas fa-exchange-alt"></i></span>Riwayat</a></li>
         <li class="menu-item"><a href="<?= BASE_URL ?>/user/categories.php"><span class="menu-icon"><i class="fas fa-tags"></i></span>Kategori</a></li>
-        <li class="menu-item active"><a href="<?= BASE_URL ?>/user/profile.php"><span class="menu-icon"><i class="fas fa-cog"></i></span>Profile</a></li>
+        <li class="menu-item"><a href="<?= BASE_URL ?>/user/profile.php"><span class="menu-icon"><i class="fas fa-cog"></i></span>Profile</a></li>
         <li class="menu-item"><a href="<?= BASE_URL ?>/logout.php"><span class="menu-icon"><i class="fas fa-sign-out-alt"></i></span>Log Out</a></li>
     </ul>
 </div>
