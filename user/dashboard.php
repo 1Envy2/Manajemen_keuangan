@@ -20,9 +20,9 @@ if ($stmt_user_data = $conn->prepare($query_user_data)) {
 
 // PERBAIKAN PATH FOTO PROFIL
 $photo_db_name = $user_data_from_db['photo'] ?? '';
-$photo_url = (!empty($photo_db_name) && file_exists(__DIR__ . '/../uploads/' . $photo_db_name))
-             ? BASE_URL . 'uploads/' . $photo_db_name
-             : BASE_URL . '/assets/profile.jpeg';
+$photo_url = (!empty($photo_db_name) && file_exists('uploads/' . $photo_db_name)) // Perbaikan path: ../uploads
+             ? BASE_URL . 'user/uploads/' . $photo_db_name
+             : BASE_URL . '/assets/profile.jpeg'; // Gunakan foto default lokal
 
 
 $current_month = date('Y-m');
@@ -587,12 +587,6 @@ $conn->close();
                 </a>
             </li>
             <li class="menu-item">
-                <a href="<?= BASE_URL ?>/user/add_transaction.php">
-                    <span class="menu-icon"><i class="fas fa-plus-circle"></i></span>
-                    <span>Tambah Transaksi</span>
-                </a>
-            </li>
-            <li class="menu-item">
                 <a href="<?= BASE_URL ?>/user/categories.php"> <span class="menu-icon"><i class="fas fa-tags"></i></span>
                     <span>Kategori</span>
                 </a>
@@ -674,11 +668,11 @@ $conn->close();
                             <div class="card-title">Pengeluaran Bulanan</div> </div>
                         <div class="card-content" style="display: flex; align-items: center; justify-content: space-around; padding: 20px;">
                             <div style="position: relative; width: 180px; height: 180px; margin-right: 20px;">
-                                <canvas id="monthlyBalanceChart"></canvas>
+                                <canvas id="monthlyExpenseChart"></canvas>
                                 <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
                                     <div style="font-size: 0.9rem; color: #888;">Total</div>
                                     <div style="font-weight: bold; font-size: 1.2rem; color: var(--color-dark-blue);">
-                                        Rp <?php echo number_format($balance_month, 0, ',', '.'); ?>
+                                        Rp <?php echo number_format($total_expense_month, 0, ',', '.'); ?>
                                     </div>
                                 </div>
                             </div>
@@ -778,8 +772,7 @@ $conn->close();
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const ctxBalance = document.getElementById('monthlyBalanceChart');
-
+        const ctxBalance = document.getElementById('monthlyExpenseChart');
         const totalIncomeMonth = <?php echo json_encode($total_income_month); ?>;
         const totalExpenseMonth = <?php echo json_encode($total_expense_month); ?>;
         const balanceMonth = <?php echo json_encode($balance_month); ?>;
