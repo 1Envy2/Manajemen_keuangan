@@ -27,11 +27,12 @@ if ($stmt_user_data = $conn->prepare($query_user_data)) {
 }
 
 // Tentukan path foto profil
-// Asumsi 'uploads/' ada di root proyek, dan 'assets/profile.jpeg' ada di public/assets/
+// Perbaikan path: menggunakan __DIR__ untuk path sistem file, dan BASE_URL untuk path web
 $photo_db_name = $user_data_from_db['photo'] ?? '';
-$photo_url = (!empty($photo_db_name) && file_exists('uploads/' . $photo_db_name)) // Perbaikan path: ../uploads
-             ? BASE_URL . 'user/uploads/' . $photo_db_name
-             : BASE_URL . '/assets/profile.jpeg'; // Gunakan foto default lokal
+$photo_url = (!empty($photo_db_name) && file_exists(__DIR__ . '/../uploads/' . $photo_db_name))
+             ? BASE_URL . 'uploads/' . $photo_db_name
+             : BASE_URL . '/assets/profile.jpeg';
+
 
 $filter = $_GET['filter'] ?? 'all';
 $where_clauses = ["t.user_id = ?"]; // Selalu filter berdasarkan user_id
@@ -402,6 +403,12 @@ $conn->close();
                     <span>Riwayat</span>
                 </a>
             </li>
+             <li class="menu-item">
+                <a href="<?= BASE_URL ?>/user/add_transaction.php">
+                    <span class="menu-icon"><i class="fas fa-plus-circle"></i></span>
+                    <span>Tambah Transaksi</span>
+                </a>
+            </li>
             <li class="menu-item">
                 <a href="<?= BASE_URL ?>/user/categories.php">
                     <span class="menu-icon"><i class="fas fa-tags"></i></span>
@@ -432,6 +439,18 @@ $conn->close();
         </div>
 
         <div class="content">
+            <?php
+            // Menampilkan pesan sukses/error dari sesi
+            if (isset($_SESSION['success_message'])) {
+                echo '<div class="alert alert-success">' . $_SESSION['success_message'] . '</div>';
+                unset($_SESSION['success_message']);
+            }
+            if (isset($_SESSION['error_message'])) {
+                echo '<div class="alert alert-danger">' . $_SESSION['error_message'] . '</div>';
+                unset($_SESSION['error_message']);
+            }
+            ?>
+
             <div class="filters">
                 <a href="<?= BASE_URL ?>/user/riwayat.php" class="<?php echo ($filter === 'all' ? 'active' : ''); ?>"><button>Semua</button></a>
                 <a href="<?= BASE_URL ?>/user/riwayat.php?filter=harian" class="<?php echo ($filter === 'harian' ? 'active' : ''); ?>"><button>Harian</button></a>
@@ -447,7 +466,7 @@ $conn->close();
                         <th>Kategori</th>
                         <th>Tanggal</th>
                         <th>Keterangan</th>
-                    </tr>
+                        <th>Aksi</th> </tr>
                 </thead>
                 <tbody>
                     <?php if ($result->num_rows > 0): ?>
@@ -460,12 +479,14 @@ $conn->close();
                                 <td data-label="Kategori"><?= htmlspecialchars($row['category_name']) ?></td>
                                 <td class="text-muted" data-label="Tanggal"><?= date('d M Y', strtotime($row['transaction_date'])) ?></td>
                                 <td data-label="Keterangan"><?= htmlspecialchars($row['description']) ?></td>
+                                <td data-label="Aksi"> <a href="<?= BASE_URL ?>/user/edit_transaction.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-info me-2">Edit</a>
+                                    <a href="<?= BASE_URL ?>/user/hapus_transaction.php?id=<?= $row['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('Anda yakin ingin menghapus transaksi ini?');">Hapus</a>
+                                </td>
                             </tr>
                         <?php endwhile; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="5" style="text-align:center; padding: 20px;">Tidak ada transaksi untuk filter ini.</td>
-                        </tr>
+                            <td colspan="6" style="text-align:center; padding: 20px;">Tidak ada transaksi untuk filter ini.</td> </tr>
                     <?php endif; ?>
                 </tbody>
             </table>

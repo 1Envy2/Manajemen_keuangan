@@ -2,7 +2,7 @@
 require_once '../config.php';
 require_once '../includes/auth.php';
 
-check_user_access();
+check_user_access(); // Menggunakan check_user_access() untuk pengguna
 
 $user_id = get_user_id();
 $username = $_SESSION['username'] ?? 'User';
@@ -18,9 +18,11 @@ if ($stmt_user_data = $conn->prepare($query_user_data)) {
     $stmt_user_data->close();
 }
 
-$photo = (!empty($user_data_from_db['photo']) && file_exists('uploads/' . $user_data_from_db['photo']))
-         ? BASE_URL . 'user/uploads/' . $user_data_from_db['photo']
-         : BASE_URL . '/assets/profile.jpeg';
+// PERBAIKAN PATH FOTO PROFIL
+$photo_db_name = $user_data_from_db['photo'] ?? '';
+$photo_url = (!empty($photo_db_name) && file_exists(__DIR__ . '/../uploads/' . $photo_db_name))
+             ? BASE_URL . 'uploads/' . $photo_db_name
+             : BASE_URL . '/assets/profile.jpeg';
 
 
 $current_month = date('Y-m');
@@ -83,7 +85,7 @@ if ($stmt_expense_overall = $conn->prepare($sql_expense_overall)) {
 $balance_overall = $total_income_overall - $total_expense_overall;
 
 $latest_transactions = [];
-$sql_latest_transactions = "SELECT t.amount, t.description, t.transaction_date, t.type, c.name AS category_name
+$sql_latest_transactions = "SELECT t.id, t.amount, t.description, t.transaction_date, t.type, c.name AS category_name
                              FROM transactions t
                              JOIN categories c ON t.category_id = c.id
                              WHERE t.user_id = ?
@@ -566,7 +568,7 @@ $conn->close();
         
         <div class="profile">
             <div class="avatar">
-                <img src="<?= $photo ?>" alt="Profile">
+                <img src="<?= $photo_url ?>" alt="Profile">
             </div>
             <span class="welcome">Welcome back</span>
             <span class="name"><?php echo htmlspecialchars($username); ?></span>
@@ -582,6 +584,12 @@ $conn->close();
             <li class="menu-item">
                 <a href="<?= BASE_URL ?>/user/riwayat.php"> <span class="menu-icon"><i class="fas fa-exchange-alt"></i></span>
                     <span>Riwayat</span>
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="<?= BASE_URL ?>/user/add_transaction.php">
+                    <span class="menu-icon"><i class="fas fa-plus-circle"></i></span>
+                    <span>Tambah Transaksi</span>
                 </a>
             </li>
             <li class="menu-item">
@@ -617,14 +625,29 @@ $conn->close();
                         <div class="stat-card blue">
                             <div class="stat-header">
                                 <span class="stat-title">Pemasukan Bulan Ini</span>
-                                <span class="stat-badge">+<?php echo number_format($total_income_month > 0 ? ($total_income_month / 1000000 * 100) : 0, 0); ?>%</span> </div>
+                                <span class="stat-badge">
+                                    <?php
+                                    // Anda mungkin ingin membandingkan dengan bulan sebelumnya untuk persentase yang bermakna
+                                    // Untuk demo ini, kita akan asumsikan pertumbuhan jika ada pemasukan
+                                    echo number_format($total_income_month > 0 ? 100 : 0, 0) . '%';
+                                    ?>
+                                </span> 
+                            </div>
                             <div class="stat-value">Rp <?php echo number_format($total_income_month, 2, ',', '.'); ?></div>
-                            <div class="stat-chart"></div> </div>
+                            <div class="stat-chart"></div> 
+                        </div>
                         
                         <div class="stat-card orange">
                             <div class="stat-header">
                                 <span class="stat-title">Pengeluaran Bulan Ini</span>
-                                <span class="stat-badge">-<?php echo number_format($total_expense_month > 0 ? ($total_expense_month / 1000000 * 100) : 0, 0); ?>%</span> </div>
+                                <span class="stat-badge">
+                                    <?php
+                                    // Anda mungkin ingin membandingkan dengan bulan sebelumnya untuk persentase yang bermakna
+                                    // Untuk demo ini, kita akan asumsikan 0% jika tidak ada pengeluaran
+                                    echo number_format($total_expense_month > 0 ? 100 : 0, 0) . '%';
+                                    ?>
+                                </span> 
+                            </div>
                             <div class="stat-value">Rp <?php echo number_format($total_expense_month, 2, ',', '.'); ?></div>
                             <div class="stat-chart"></div>
                         </div>
@@ -632,7 +655,14 @@ $conn->close();
                         <div class="stat-card green">
                             <div class="stat-header">
                                 <span class="stat-title">Saldo</span>
-                                <span class="stat-badge"><?php echo $balance_month >= 0 ? '+' : ''; echo number_format($balance_month > 0 ? ($balance_month / 1000000 * 100) : 0, 0); ?>%</span> </div>
+                                <span class="stat-badge">
+                                    <?php
+                                    // Persentase saldo bisa lebih kompleks, ini hanya contoh dasar
+                                    echo $balance_month >= 0 ? '+' : '';
+                                    echo number_format($balance_month != 0 ? ($balance_month / ($total_income_month + $total_expense_month > 0 ? $total_income_month + $total_expense_month : 1)) * 100 : 0, 0) . '%';
+                                    ?>
+                                </span> 
+                            </div>
                             <div class="stat-value">Rp <?php echo number_format($balance_month, 2, ',', '.'); ?></div>
                             <div class="stat-chart"></div>
                         </div>
@@ -648,7 +678,7 @@ $conn->close();
                                 <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
                                     <div style="font-size: 0.9rem; color: #888;">Total</div>
                                     <div style="font-weight: bold; font-size: 1.2rem; color: var(--color-dark-blue);">
-                                        Rp <?php echo number_format($balance_month / 1000000, 0, ',', '.'); ?> Juta
+                                        Rp <?php echo number_format($balance_month, 0, ',', '.'); ?>
                                     </div>
                                 </div>
                             </div>
@@ -657,8 +687,8 @@ $conn->close();
                                     <div style="font-size: 0.9rem; color: #555;">Pemasukan</div>
                                     <div style="font-weight: bold; font-size: 1.1rem; color: var(--color-dark-blue);">
                                         <?php
-                                            $total_all_transactions = $total_income_month + $total_expense_month; // Total keseluruhan untuk persentase
-                                            $income_percentage = ($total_all_transactions > 0) ? ($total_income_month / $total_all_transactions) * 100 : 0;
+                                            $total_all_transactions_for_chart = $total_income_month + $total_expense_month; // Total keseluruhan untuk persentase
+                                            $income_percentage = ($total_all_transactions_for_chart > 0) ? ($total_income_month / $total_all_transactions_for_chart) * 100 : 0;
                                             echo number_format($income_percentage, 0) . '%';
                                         ?>
                                     </div>
@@ -670,7 +700,7 @@ $conn->close();
                                     <div style="font-size: 0.9rem; color: #555;">Pengeluaran</div>
                                     <div style="font-weight: bold; font-size: 1.1rem; color: var(--color-dark-blue);">
                                         <?php
-                                            $expense_percentage = ($total_all_transactions > 0) ? ($total_expense_month / $total_all_transactions) * 100 : 0;
+                                            $expense_percentage = ($total_all_transactions_for_chart > 0) ? ($total_expense_month / $total_all_transactions_for_chart) * 100 : 0;
                                             echo number_format($expense_percentage, 0) . '%';
                                         ?>
                                     </div>
@@ -701,6 +731,10 @@ $conn->close();
                                             </div>
                                             <div class="amount <?php echo ($t['type'] == 'income' ? 'income' : 'expense'); ?>">
                                                 Rp <?php echo number_format($t['amount'], 2, ',', '.'); ?>
+                                            </div>
+                                            <div class="ms-auto d-flex align-items-center">
+                                                <a href="<?= BASE_URL ?>/user/edit_transaction.php?id=<?= $t['id']; ?>" class="btn btn-sm btn-info me-2"><i class="fas fa-edit"></i></a>
+                                                <a href="<?= BASE_URL ?>/user/hapus_transaction.php?id=<?= $t['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('Anda yakin ingin menghapus transaksi ini?');"><i class="fas fa-trash-alt"></i></a>
                                             </div>
                                         </div>
                                     <?php endforeach; ?>
@@ -740,7 +774,7 @@ $conn->close();
         </div>
     </div>
     
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" ...></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
